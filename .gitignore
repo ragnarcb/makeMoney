@@ -13,3 +13,6 @@ video_generator/temp_audio
 /screenshots_old
 /screenshots_new
 *.pyc
+*/venv
+*/node_modules
+*/__pycache__
