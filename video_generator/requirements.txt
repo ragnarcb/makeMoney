@@ -1,0 +1,7 @@
+openai
+python-dotenv
+opencv-python
+numpy
+moviepy<=2.0
+gTTS
+loguru
