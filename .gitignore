@@ -2,3 +2,13 @@
 video_generator/temp_chat_imgs
 video_generator/temp_audio
 */venv
+/node_modules
+/dist
+/build
+/coverage
+/logs
+/temp
+/tmp
+/screenshots
+/screenshots_old
+/screenshots_new

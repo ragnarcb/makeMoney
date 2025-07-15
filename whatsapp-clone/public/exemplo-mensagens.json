@@ -1,0 +1,66 @@
+{
+  "msgs": [
+    {
+      "id": "1",
+      "texto": "Oi! Como vai?",
+      "usuario": {
+        "id": "contato1",
+        "nome": "Maria"
+      },
+      "timestamp": "2024-01-15T09:00:00Z",
+      "isMine": false
+    },
+    {
+      "id": "2",
+      "texto": "Oi Maria! Tudo bem por aqui 😊",
+      "usuario": {
+        "id": "eu",
+        "nome": "Você"
+      },
+      "timestamp": "2024-01-15T09:01:00Z",
+      "isMine": true
+    },
+    {
+      "id": "3",
+      "texto": "Que bom! Você vai no evento hoje?",
+      "usuario": {
+        "id": "contato1",
+        "nome": "Maria"
+      },
+      "timestamp": "2024-01-15T09:02:00Z",
+      "isMine": false
+    },
+    {
+      "id": "4",
+      "texto": "Sim! Já estou me arrumando. Que horas você vai?",
+      "usuario": {
+        "id": "eu",
+        "nome": "Você"
+      },
+      "timestamp": "2024-01-15T09:03:00Z",
+      "isMine": true
+    },
+    {
+      "id": "5",
+      "texto": "Pretendo sair daqui às 14h",
+      "usuario": {
+        "id": "contato1",
+        "nome": "Maria"
+      },
+      "timestamp": "2024-01-15T09:04:00Z",
+      "isMine": false
+    },
+    {
+      "id": "6",
+      "texto": "Perfeito! Nos vemos lá então 🎉",
+      "usuario": {
+        "id": "eu",
+        "nome": "Você"
+      },
+      "timestamp": "2024-01-15T09:05:00Z",
+      "isMine": true
+    }
+  ],
+  "contactName": "Maria Silva",
+  "contactAvatar": ""
+} 
