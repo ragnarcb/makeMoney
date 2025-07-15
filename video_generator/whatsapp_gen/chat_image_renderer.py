@@ -5,42 +5,54 @@ import requests  # For future use
 
 def render_chat_images(messages, participants, out_dir, img_size=(1920, 1080)):
     """
-    For now, this is a placeholder. 
-    The user should provide pre-made WhatsApp images that already contain the chat content.
-    This function would load and process those images progressively.
+    Call Node.js API to generate WhatsApp images from messages
     """
     os.makedirs(out_dir, exist_ok=True)
     
-    # TODO: Replace this with actual image loading logic
-    # For now, create placeholder images
-    img_paths = []
-    for i in range(1, len(messages) + 1):
-        # This should load your pre-made WhatsApp image for message i
-        # For now, creating a simple placeholder
-        import numpy as np
-        import cv2
-        
-        placeholder = np.ones((img_size[0], img_size[1], 3), dtype=np.uint8) * 255
-        cv2.putText(placeholder, f"WhatsApp Image {i}", (50, img_size[0]//2), cv2.FONT_HERSHEY_SIMPLEX, 2, (0,0,0), 3)
-        
-        out_path = os.path.join(out_dir, f"whatsapp_{i}.png")
-        cv2.imwrite(out_path, placeholder)
-        img_paths.append(out_path)
+    # Call Node.js API
+    api_url = "http://localhost:3001/generate-images"
+    payload = {
+        "messages": messages,
+        "participants": participants,
+        "outputDir": out_dir
+    }
     
-    return img_paths
+    try:
+        response = requests.post(api_url, json=payload, timeout=60)
+        response.raise_for_status()
+        
+        result = response.json()
+        if result.get('success'):
+            return result['imagePaths']
+        else:
+            raise Exception(f"API error: {result.get('error', 'Unknown error')}")
+            
+    except requests.exceptions.ConnectionError:
+        raise Exception("Could not connect to Node.js server. Make sure it's running on port 3001")
+    except requests.exceptions.Timeout:
+        raise Exception("Request timed out. The image generation took too long")
+    except Exception as e:
+        raise Exception(f"Failed to generate images: {str(e)}")
 
 def get_chat_images(messages, participants, out_dir, use_external=False, api_url=None, img_size=(1920, 1080)):
     """
     Abstraction for chat image generation.
     If use_external is True and api_url is provided, call the external API.
-    Otherwise, use the local render_chat_images.
+    Otherwise, use the local Node.js API.
     """
     if use_external and api_url:
-        # Example: POST to external API
-        response = requests.post(api_url, json={"messages": messages, "participants": participants, "out_dir": out_dir, "img_size": img_size})
+        # Call external API
+        payload = {
+            "messages": messages,
+            "participants": participants,
+            "outputDir": out_dir,
+            "img_size": img_size
+        }
+        response = requests.post(api_url, json=payload)
         response.raise_for_status()
-        return response.json()["image_paths"]
+        return response.json()["imagePaths"]
     else:
+        # Call local Node.js API
         return render_chat_images(messages, participants, out_dir, img_size)
 
 if __name__ == "__main__":

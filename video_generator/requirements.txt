@@ -5,3 +5,4 @@ numpy
 moviepy<=2.0
 gTTS
 loguru
+requests
