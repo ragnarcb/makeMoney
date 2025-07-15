@@ -12,3 +12,4 @@ video_generator/temp_audio
 /screenshots
 /screenshots_old
 /screenshots_new
+*.pyc
