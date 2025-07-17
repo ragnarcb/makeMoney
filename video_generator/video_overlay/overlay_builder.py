@@ -1,5 +1,5 @@
 import os
-from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips, VideoFileClip, CompositeVideoClip
+from moviepy import ImageClip, AudioFileClip, concatenate_videoclips, VideoFileClip, CompositeVideoClip
 
 def build_video(image_paths, audio_paths, output_path, background_video_path=None, fps=30):
     """

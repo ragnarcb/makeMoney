@@ -1,6 +1,6 @@
 openai
 python-dotenv
-opencv-python
+opencv-python-headless
 numpy
 moviepy<=2.0
 gTTS

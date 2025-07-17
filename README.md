@@ -1,140 +1,169 @@
-# WhatsApp Video Generator Microservice
+# WhatsApp Video Generator
 
-A Docker-based microservice that generates WhatsApp-style videos with custom conversations, TTS audio, and background videos.
+A microservice system that generates WhatsApp-style videos with custom conversations, using Python and Node.js components running in the same Docker container.
 
 ## 🏗️ Architecture
 
-- **Python**: Orchestrates the pipeline (chat generation, TTS, video creation)
-- **Node.js**: Generates WhatsApp-style images using Puppeteer
-- **Docker**: Runs both services in a single container
+The system consists of two main components:
+
+1. **Python Service** (Orchestrator):
+   - Generates chat conversations using OpenAI API
+   - Creates TTS audio for each message
+   - Calls Node.js service to generate WhatsApp images
+   - Assembles final video with background overlay
+
+2. **Node.js Service** (Image Generator):
+   - Receives message JSON from Python service
+   - Uses Puppeteer to render React WhatsApp clone
+   - Takes progressive screenshots (1 message, 2 messages, etc.)
+   - Returns image paths to Python service
 
 ## 🚀 Quick Start
 
-### 1. Set Environment Variables
-```bash
-export OPENAI_API_KEY="your-openai-api-key-here"
+### Prerequisites
+- Docker and Docker Compose
+- OpenAI API key
+
+### Setup
+1. Set your OpenAI API key:
+   ```bash
+   export OPENAI_API_KEY="your-api-key-here"
+   ```
+
+2. Build and run the system:
+   ```bash
+   docker-compose up --build
+   ```
+
+3. The system will:
+   - Build the React WhatsApp clone
+   - Start the Node.js server on port 3001
+   - Generate a WhatsApp video with the default prompt
+   - Save the output to `./output/output_with_overlay.mp4`
+
+## 🔧 How It Works
+
+### 1. Message Flow
+```
+Python Service → OpenAI API → Chat JSON → Node.js Service → WhatsApp Images
 ```
 
-### 2. Build and Run with Docker Compose
-```bash
-# Build and run with default prompt
-docker-compose up --build
+### 2. Node.js Integration
+The Node.js service:
+- Runs an Express server on port 3001
+- Serves the React WhatsApp clone
+- Uses Puppeteer to take screenshots
+- Provides API endpoints:
+  - `POST /api/generate-screenshots` - Generate progressive screenshots
+  - `GET /api/messages` - Get current messages
+  - `GET /api/health` - Health check
 
-# Or run with custom prompt
-docker-compose run --rm whatsapp-video-generator --prompt "Uma conversa engraçada sobre programação"
-```
-
-### 3. Run with Docker Directly
-```bash
-# Build the image
-docker build -t whatsapp-video-generator .
-
-# Run with custom prompt
-docker run --rm \
-  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
-  -v $(pwd)/output:/app/video_generator/output \
-  -v $(pwd)/background_videos:/app/background_videos \
-  whatsapp-video-generator \
-  --prompt "Uma conversa engraçada sobre tecnologia"
-```
+### 3. Image Generation Process
+1. Python sends message JSON to Node.js service
+2. Node.js updates the React app with messages
+3. Puppeteer takes screenshots progressively:
+   - Screenshot 1: 1 message
+   - Screenshot 2: 2 messages
+   - Screenshot 3: 3 messages
+   - etc.
+4. Node.js returns image paths to Python
+5. Python uses images to create final video
 
 ## 📁 Project Structure
 
 ```
 makeMoney/
-├── Dockerfile                 # Multi-stage Docker build
-├── docker-compose.yml         # Docker Compose configuration
-├── .dockerignore             # Docker ignore file
-├── whatsapp-clone/           # Node.js microservice
-│   ├── src/server.ts         # Express API server
-│   └── package.json          # Node.js dependencies
 ├── video_generator/          # Python orchestrator
-│   ├── main.py              # Main pipeline
-│   └── requirements.txt     # Python dependencies
-├── background_videos/        # Background videos (mounted)
-└── output/                  # Generated videos (mounted)
+│   ├── main.py              # Main entry point
+│   ├── whatsapp_gen/        # Chat generation
+│   ├── tts/                 # Text-to-speech
+│   ├── video_overlay/       # Video assembly
+│   └── utils/               # Utilities
+├── whatsapp-clone/          # Node.js image generator
+│   ├── server.js            # Express server
+│   ├── src/                 # React app
+│   └── package.json         # Node.js dependencies
+├── background_videos/        # Background video files
+├── output/                  # Generated videos
+├── Dockerfile               # Container setup
+└── docker-compose.yml       # Service orchestration
 ```
 
-## 🎯 Usage Examples
+## 🎯 Customization
 
-### Basic Usage
+### Custom Prompts
 ```bash
-docker-compose run --rm whatsapp-video-generator
-```
-
-### Custom Prompt
-```bash
-docker-compose run --rm whatsapp-video-generator \
-  --prompt "Uma conversa engraçada sobre programação e bugs"
+docker-compose run --rm whatsapp-video-generator --prompt "Uma conversa engraçada sobre programação"
 ```
 
 ### Custom Participants
 ```bash
-docker-compose run --rm whatsapp-video-generator \
-  --prompt "Uma conversa sobre futebol" \
-  --participants "João" "Maria"
+docker-compose run --rm whatsapp-video-generator --participants "João" "Maria"
 ```
 
-## 📋 API Endpoints
-
-The Node.js server exposes:
-- `POST /generate-images` - Generate WhatsApp images from messages
-- `GET /health` - Health check
-
-## 🔧 Configuration
-
-### Environment Variables
-- `OPENAI_API_KEY` - Required for chat generation
-
-### Command Line Arguments
-- `--prompt` - Custom conversation prompt
-- `--participants` - Participant names (default: Ana, Bruno)
-
-### Volumes
-- `./output` - Generated videos
-- `./background_videos` - Background video files
-
-## 🎬 Output
-
-The service generates:
-1. **WhatsApp chat JSON** - Generated by OpenAI
-2. **TTS audio files** - Portuguese audio for each message
-3. **WhatsApp images** - Progressive images generated by Node.js
-4. **Final video** - Combined with background video and TTS
-
-## 🐛 Troubleshooting
-
-### Node.js Server Not Starting
+### Testing Node.js Service
 ```bash
-# Check if port 3001 is available
-docker-compose logs whatsapp-video-generator
+python test_node_service.py
 ```
 
-### Missing Dependencies
-```bash
-# Rebuild the container
-docker-compose build --no-cache
-```
+## 🔍 Troubleshooting
 
-### OpenAI API Issues
-```bash
-# Verify API key
-echo $OPENAI_API_KEY
-```
+### Node.js Service Issues
+- Check if port 3001 is available
+- Verify React app builds successfully
+- Check Docker logs: `docker-compose logs whatsapp-video-generator`
 
-## 🔄 Development
+### Image Generation Issues
+- Ensure Puppeteer dependencies are installed
+- Check if React app loads correctly
+- Verify message JSON format
+
+### Video Generation Issues
+- Check OpenAI API key is set
+- Verify background videos exist
+- Check output directory permissions
+
+## 🛠️ Development
 
 ### Local Development
-```bash
-# Start Node.js server
-cd whatsapp-clone && npm run server
+1. Start Node.js service:
+   ```bash
+   cd whatsapp-clone
+   npm install
+   cd src && npm install && npm run build && cd ..
+   node server.js
+   ```
 
-# Start Python pipeline
-cd video_generator && python main.py --prompt "Your prompt here"
+2. Run Python service:
+   ```bash
+   cd video_generator
+   pip install -r requirements.txt
+   python main.py
+   ```
+
+### API Endpoints
+
+#### Generate Screenshots
+```bash
+curl -X POST http://localhost:3001/api/generate-screenshots \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [...],
+    "participants": ["Ana", "Bruno"],
+    "outputDir": "./output",
+    "img_size": [1920, 1080]
+  }'
 ```
 
-### Rebuilding
+#### Health Check
 ```bash
-docker-compose build --no-cache
-docker-compose up
-``` 
+curl http://localhost:3001/api/health
+```
+
+## 📝 Notes
+
+- The system uses a phone aspect ratio (portrait) for videos
+- Images are generated progressively to sync with TTS audio
+- Background videos are randomly selected from the `background_videos/` folder
+- The React WhatsApp clone provides a realistic WhatsApp interface
+- All services run in a single Docker container for simplicity 

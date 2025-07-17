@@ -1,10 +1,63 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import WhatsAppChat from './components/WhatsAppChat';
 import { Mensagem } from './types/Message';
 import './App.css';
 
 const App: React.FC = () => {
-  // Conversa polêmica entre professora e aluno
+  const [messages, setMessages] = useState<Mensagem[]>([]);
+  const [contactName, setContactName] = useState<string>('Ana');
+
+  // Load messages from server on component mount
+  useEffect(() => {
+    const loadMessages = async () => {
+      try {
+        const response = await fetch('/api/messages');
+        const data = await response.json();
+        
+        if (data.messages && data.messages.length > 0) {
+          setMessages(data.messages);
+          // Set contact name from first message that's not mine
+          const otherUser = data.messages.find((msg: Mensagem) => !msg.isMine);
+          if (otherUser) {
+            setContactName(otherUser.usuario.nome);
+          }
+        } else {
+          // Fallback to example messages if no messages from server
+          setMessages(mensagensExemplo);
+          setContactName('Prof. Marina (28 anos)');
+        }
+      } catch (error) {
+        console.error('Failed to load messages from server:', error);
+        // Fallback to example messages
+        setMessages(mensagensExemplo);
+        setContactName('Prof. Marina (28 anos)');
+      }
+    };
+
+    loadMessages();
+
+    // Listen for message updates from the server
+    const handleMessageUpdate = (event: CustomEvent) => {
+      const { messages: newMessages, participants } = event.detail;
+      setMessages(newMessages);
+      
+      // Update contact name from participants
+      if (participants && participants.length > 0) {
+        const otherUser = newMessages.find((msg: Mensagem) => !msg.isMine);
+        if (otherUser) {
+          setContactName(otherUser.usuario.nome);
+        }
+      }
+    };
+
+    window.addEventListener('updateMessages', handleMessageUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('updateMessages', handleMessageUpdate as EventListener);
+    };
+  }, []);
+
+  // Example messages (fallback)
   const mensagensExemplo: Mensagem[] = [
     {
       id: '1',
@@ -161,8 +214,8 @@ const App: React.FC = () => {
   return (
     <div className="App">
       <WhatsAppChat 
-        msgs={mensagensExemplo}
-        contactName="Prof. Marina (28 anos)"
+        msgs={messages}
+        contactName={contactName}
       />
     </div>
   );

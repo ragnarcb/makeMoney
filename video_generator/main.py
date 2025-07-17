@@ -39,17 +39,17 @@ def main():
     audio_paths = generate_tts(messages, TEMP_AUDIO_DIR, lang=LANG)
     logger.success(f"Generated TTS for {len(audio_paths)} messages.")
 
-    logger.info("Calling Node.js API to generate WhatsApp images...")
+    logger.info("Using Node.js service to generate WhatsApp images...")
     try:
         img_paths = get_chat_images(messages, args.participants, TEMP_IMG_DIR, img_size=IMG_SIZE)
-        logger.success(f"Generated {len(img_paths)} WhatsApp images via Node.js API.")
+        logger.success(f"Generated {len(img_paths)} WhatsApp images via Node.js service.")
     except Exception as e:
         logger.error(f"Failed to generate WhatsApp images: {e}")
-        logger.error("Make sure the Node.js server is running: cd ../whatsapp-clone && npm run server")
+        logger.error("Make sure the Node.js server is running on http://localhost:3001")
         sys.exit(1)
 
     if not img_paths:
-        logger.error("No images were generated. Check the Node.js API.")
+        logger.error("No images were generated. Check the screenshotter automation.")
         sys.exit(1)
 
     # Select background video
