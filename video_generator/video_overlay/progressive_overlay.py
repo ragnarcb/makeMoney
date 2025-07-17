@@ -47,22 +47,75 @@ class ProgressiveMessageOverlay:
         if self.base_image.mode != 'RGBA':
             self.base_image = self.base_image.convert('RGBA')
         width, height = self.base_image.size
+        
         if self.message_coordinates:
+            # Find the topmost and bottommost message positions
             top_y = min(coord['y'] for coord in self.message_coordinates)
             bottom_y = max(coord['y'] + coord['height'] for coord in self.message_coordinates)
-            top_padding = max(0, top_y - 100)
-            bottom_padding = min(height, bottom_y + 100)
+            
+            # Adjust Y-axis alignment by 23 pixels
+            top_y = max(0, top_y - 23)
+            bottom_y = min(height, bottom_y -23)
+            # Add some padding but be more aggressive about removing borders
+            top_padding = max(0, top_y - 50)  # Reduced from 100 to 50
+            bottom_padding = min(height, bottom_y + 50)  # Reduced from 100 to 50
+            
             logger.debug(f"Auto-crop boundaries: top={top_padding}, bottom={bottom_padding}")
+            
+            # Crop the image
             cropped = self.base_image.crop((0, top_padding, width, bottom_padding))
         else:
-            top_crop = int(height * 0.2)
-            bottom_crop = int(height * 0.85)
-            cropped = self.base_image.crop((0, top_crop, width, bottom_crop))
+            # Fallback: crop more aggressively to remove borders
+            top_crop = int(height * 0.25)  # Increased from 0.2 to 0.25
+            bottom_crop = int(height * 0.80)  # Reduced from 0.85 to 0.80           cropped = self.base_image.crop((0, top_crop, width, bottom_crop))
             logger.debug(f"Fallback crop: top={top_crop}, bottom={bottom_crop}")
+        
+        # Remove the d7d2d2 colored borders (WhatsApp UI elements)
+        cropped = self._remove_whatsapp_borders(cropped)
+        
         # Ensure cropped is RGBA
-        if cropped.mode != 'RGBA':
-            cropped = cropped.convert('RGBA')
+        if cropped.mode != 'RGBA':           cropped = cropped.convert('RGBA')
         return cropped
+    
+    def _remove_whatsapp_borders(self, image: Image.Image) -> Image.Image:
+        """Remove WhatsApp UI borders with color d7d2d2."""
+        # Convert to RGB for color detection
+        rgb_image = image.convert('RGB')
+        width, height = rgb_image.size
+        
+        # Define the border color (d7d2d2)
+        border_color = (215, 210, 210)  # RGB equivalent of d7d2d2
+        tolerance = 20  # Color tolerance for detection
+        
+        # Find the actual content boundaries by removing border-colored areas
+        left_bound = 0
+        right_bound = width
+        
+        # Scan from left to find first non-border pixel
+        for x in range(width):
+            if not self._is_border_color(rgb_image, x, height//2, border_color, tolerance):
+                left_bound = x
+                break
+        
+        # Scan from right to find last non-border pixel
+        for x in range(width-1, -1, -1):
+            if not self._is_border_color(rgb_image, x, height//2, border_color, tolerance):
+                right_bound = x + 1
+                break
+        
+        # Crop out the border areas
+        cropped = image.crop((left_bound, 0, right_bound, height))
+        logger.debug(f"Removed borders: left={left_bound}, right={right_bound}, new width={cropped.width}")
+        
+        return cropped
+    
+    def _is_border_color(self, image: Image.Image, x: int, y: int, target_color: tuple, tolerance: int) -> bool:
+        """Check if a pixel is close to the border color."""
+        try:
+            pixel = image.getpixel((x, y))
+            return all(abs(p - t) <= tolerance for p, t in zip(pixel, target_color))
+        except IndexError:
+            return False
 
     def create_progressive_frames(self, audio_durations: List[float], fps: int = 30, 
                                  start_buffer: float = 1.0, end_buffer: float = 3.0) -> List[str]:

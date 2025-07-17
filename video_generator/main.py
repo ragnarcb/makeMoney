@@ -145,6 +145,7 @@ def main():
         logger.debug(f"Building video with {len(frame_paths)} frames and background: {background_video}")
         build_video(
             frame_paths,
+            audio_paths,
             OUTPUT_VIDEO_PATH,
             background_video_path=background_video,
             fps=FPS

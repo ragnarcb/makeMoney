@@ -21,11 +21,47 @@ try:
 except ImportError as e:
     print(f"❌ CompositeVideoClip import failed: {e}")
 
+# Test AudioFileClip import
+try:
+    from moviepy.audio.io.AudioFileClip import AudioFileClip
+    print("✅ AudioFileClip import successful")
+except ImportError as e:
+    print(f"❌ AudioFileClip import failed: {e}")
+
 try:
     import moviepy
     print(f"✅ moviepy version: {moviepy.__version__}")
 except ImportError as e:
     print(f"❌ moviepy import failed: {e}")
+
+# Test for concatenation methods
+print("\n=== Testing concatenation methods ===")
+try:
+    # Check if concatenate_videoclips exists
+    try:
+        from moviepy.video.compositing.concatenate import concatenate_videoclips
+        print("✅ concatenate_videoclips import successful")
+    except ImportError:
+        print("❌ concatenate_videoclips not found in moviepy.video.compositing.concatenate")
+    
+    # Check if it's in the main moviepy module
+    try:
+        import moviepy
+        if hasattr(moviepy, 'concatenate_videoclips'):
+            print("✅ concatenate_videoclips found in moviepy module")
+        else:
+            print("❌ concatenate_videoclips not found in moviepy module")
+    except Exception as e:
+        print(f"❌ Error checking moviepy module: {e}")
+    
+    # Check what's available in the compositing module
+    try:
+        import moviepy.video.compositing
+        print(f"Available in moviepy.video.compositing: {dir(moviepy.video.compositing)}")
+    except Exception as e:
+        print(f"❌ Error checking compositing module: {e}")
+except Exception as e:
+    print(f"❌ Concatenation test failed: {e}")
 
 print("\n=== Testing VideoFileClip methods ===")
 try:
