@@ -16,3 +16,4 @@ video_generator/temp_audio
 */venv
 */node_modules
 */__pycache__
+video_generator/temp_frames/*
