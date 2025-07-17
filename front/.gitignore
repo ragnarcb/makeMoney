@@ -8,6 +8,12 @@ video_generator/temp_audio
 /coverage
 /logs
 /temp
+/node_modules
+/dist
+/build
+/coverage
+/logs
+/temp
 /tmp
 /screenshots
 /screenshots_old

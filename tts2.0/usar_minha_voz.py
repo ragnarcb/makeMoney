@@ -17,7 +17,7 @@ from pathlib import Path
 # Configuração do arquivo de referência
 ARQUIVO_VOZ_REFERENCIA = "tts2.0\Vídeo sem título ‐ Feito com o Clipchamp.wav"
 ARQUIVO_VOZ_CONVERTIDO = "voz_referencia_convertida.wav"
-ARQUIVO_JSON_MENSAGENS = "../front/whatsapp-clone/public/exemplo-mensagens.json"
+ARQUIVO_JSON_MENSAGENS = "exemplo-mensagens.json"
 
 def converter_audio_para_compativel(arquivo_original, arquivo_saida):
     """Converte áudio para formato compatível com Coqui TTS"""
@@ -688,7 +688,7 @@ def gerar_todos_audios_completos(arquivo_referencia):
         print(f"[WARNING] {erros_total} arquivos falharam na geração")
 
 def limpar_texto(texto):
-    """Remove emojis e caracteres especiais do texto"""
+    """Remove emojis e caracteres especiais do texto, mas preserva entonação natural"""
     # Padrão para detectar emojis e outros caracteres especiais
     padrao_emoji = re.compile("["
         u"\U0001F600-\U0001F64F"  # emoticons
@@ -705,15 +705,52 @@ def limpar_texto(texto):
     # Remover múltiplos espaços
     texto_limpo = ' '.join(texto_limpo.split())
     
-    # Remover reticências extras
-    texto_limpo = texto_limpo.replace('...', '')
-    texto_limpo = texto_limpo.replace('..', '')
+    # MELHORADO: Tratamento inteligente de pontuação
+    # ===============================================
     
-    # Remover pontos finais para evitar que o TTS fale "ponto"
-    texto_limpo = texto_limpo.replace('.', '')
+    # 1. Preservar abreviações importantes (não remover seus pontos)
+    abreviacoes = ['Dr.', 'Dra.', 'Sr.', 'Sra.', 'Prof.', 'Profa.', 'etc.', 'ex.', 'vs.', 'p.ex.']
+    marcadores_abrev = {}
+    for i, abrev in enumerate(abreviacoes):
+        marcador = f"__ABREV_{i}__"
+        if abrev in texto_limpo:
+            texto_limpo = texto_limpo.replace(abrev, marcador)
+            marcadores_abrev[marcador] = abrev
     
-    # Remover espaços antes de pontuação
+    # 2. Remover apenas reticências múltiplas problemáticas
+    texto_limpo = re.sub(r'\.{3,}', '', texto_limpo)  # Remove ... .... etc
+    texto_limpo = texto_limpo.replace('…', '')  # Remove ellipsis unicode
+    
+    # 3. TÉCNICA INTELIGENTE: Substituir pontos finais por vírgulas para manter entonação
+    # Isso evita que o TTS fale "ponto" mas mantém a pausa natural
+    texto_limpo = re.sub(r'\.(\s+|$)', r',\1', texto_limpo)  # Ponto final → vírgula
+    
+    # 4. Remover pontos isolados ou problemáticos (que não são finais)
+    texto_limpo = re.sub(r'(\s)\.(\s)', r'\1\2', texto_limpo)  # Remove pontos no meio
+    
+    # 5. Para frases que terminariam abruptamente, adicionar pausa natural
+    if texto_limpo.strip() and not texto_limpo.strip().endswith((',', '!', '?', ':')):
+        texto_limpo = texto_limpo.strip() + ','
+    
+    # 6. Restaurar abreviações importantes
+    for marcador, abrev_original in marcadores_abrev.items():
+        # Restaurar mas substituir ponto por vírgula para evitar TTS falar "ponto"
+        abrev_segura = abrev_original.replace('.', ',')
+        texto_limpo = texto_limpo.replace(marcador, abrev_segura)
+    
+    # 7. Adicionar melhorias específicas para TTS
+    # Garantir pausas pequenas antes de pontuação importante
+    texto_limpo = re.sub(r'([,!?;:])', r' \1', texto_limpo)
+    
+    # Garantir espaço após pontuação
+    texto_limpo = re.sub(r'([,!?;:])([^\s])', r'\1 \2', texto_limpo)
+    
+    # 8. Normalizar espaços finais
     texto_limpo = re.sub(r'\s+([,!?])', r'\1', texto_limpo)
+    
+    # 9. Adicionar padding no final para evitar cortes bruscos
+    if texto_limpo.strip():
+        texto_limpo = texto_limpo.strip() + ' '
     
     return texto_limpo.strip()
 

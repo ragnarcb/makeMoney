@@ -1,0 +1,172 @@
+{
+  "mensagens": [
+    {
+      "id": "1",
+      "texto": "Olá pessoal! Sejam bem-vindos à nossa reunião de hoje",
+      "usuario": {
+        "id": "moderador",
+        "nome": "Dr. Carlos"
+      },
+      "timestamp": "2024-01-15T09:00:00Z"
+    },
+    {
+      "id": "2", 
+      "texto": "Bom dia! Estou muito animado para começar",
+      "usuario": {
+        "id": "aluno",
+        "nome": "Lucas"
+      },
+      "timestamp": "2024-01-15T09:00:15Z"
+    },
+    {
+      "id": "3",
+      "texto": "Olá a todos! Vamos começar com a apresentação do projeto",
+      "usuario": {
+        "id": "professora", 
+        "nome": "Prof. Marina"
+      },
+      "timestamp": "2024-01-15T09:00:30Z"
+    },
+    {
+      "id": "4",
+      "texto": "Perfeito! Tenho algumas questões importantes para discutir",
+      "usuario": {
+        "id": "cliente",
+        "nome": "Roberto Silva"
+      },
+      "timestamp": "2024-01-15T09:01:00Z"
+    },
+    {
+      "id": "5",
+      "texto": "Vou apresentar os resultados da nossa pesquisa",
+      "usuario": {
+        "id": "pesquisador",
+        "nome": "Dra. Ana"
+      },
+      "timestamp": "2024-01-15T09:01:15Z"
+    },
+    {
+      "id": "6",
+      "texto": "Concordo plenamente com a proposta apresentada",
+      "usuario": {
+        "id": "aluno",
+        "nome": "Lucas"
+      },
+      "timestamp": "2024-01-15T09:02:00Z"
+    },
+    {
+      "id": "7",
+      "texto": "Excelente trabalho! Os dados estão muito bem organizados",
+      "usuario": {
+        "id": "professora",
+        "nome": "Prof. Marina"  
+      },
+      "timestamp": "2024-01-15T09:02:30Z"
+    },
+    {
+      "id": "8",
+      "texto": "Temos alguma dúvida sobre a implementação técnica?",
+      "usuario": {
+        "id": "moderador",
+        "nome": "Dr. Carlos"
+      },
+      "timestamp": "2024-01-15T09:03:00Z"
+    },
+    {
+      "id": "9",
+      "texto": "Sim, gostaria de entender melhor o cronograma",
+      "usuario": {
+        "id": "cliente", 
+        "nome": "Roberto Silva"
+      },
+      "timestamp": "2024-01-15T09:03:15Z"
+    },
+    {
+      "id": "10",
+      "texto": "Baseado nos nossos estudos, recomendo essa abordagem",
+      "usuario": {
+        "id": "pesquisador",
+        "nome": "Dra. Ana"
+      },
+      "timestamp": "2024-01-15T09:03:45Z"
+    },
+    {
+      "id": "11",
+      "texto": "Posso ajudar com a documentação do projeto",
+      "usuario": {
+        "id": "aluno",
+        "nome": "Lucas"
+      },
+      "timestamp": "2024-01-15T09:04:00Z"
+    },
+    {
+      "id": "12",
+      "texto": "Ótima ideia! Vamos dividir as tarefas entre todos",
+      "usuario": {
+        "id": "professora",
+        "nome": "Prof. Marina"
+      },
+      "timestamp": "2024-01-15T09:04:30Z"
+    },
+    {
+      "id": "13",
+      "texto": "Perfeito! Então está decidido nosso plano de ação",
+      "usuario": {
+        "id": "moderador",
+        "nome": "Dr. Carlos"
+      },
+      "timestamp": "2024-01-15T09:05:00Z"
+    },
+    {
+      "id": "14",
+      "texto": "Agradeço a participação de todos na reunião",
+      "usuario": {
+        "id": "cliente",
+        "nome": "Roberto Silva"
+      },
+      "timestamp": "2024-01-15T09:05:30Z"
+    },
+    {
+      "id": "15",
+      "texto": "Foi um prazer contribuir com este projeto incrível",
+      "usuario": {
+        "id": "pesquisador",
+        "nome": "Dra. Ana"
+      },
+      "timestamp": "2024-01-15T09:06:00Z"
+    }
+  ],
+  "metadados": {
+    "titulo": "Reunião de Projeto - Múltiplos Personagens",
+    "data": "2024-01-15",
+    "participantes": [
+      {
+        "id": "moderador",
+        "nome": "Dr. Carlos",
+        "papel": "Moderador da reunião"
+      },
+      {
+        "id": "aluno", 
+        "nome": "Lucas",
+        "papel": "Estudante participante"
+      },
+      {
+        "id": "professora",
+        "nome": "Prof. Marina", 
+        "papel": "Professora orientadora"
+      },
+      {
+        "id": "cliente",
+        "nome": "Roberto Silva",
+        "papel": "Cliente do projeto"
+      },
+      {
+        "id": "pesquisador",
+        "nome": "Dra. Ana",
+        "papel": "Pesquisadora especialista"
+      }
+    ],
+    "total_mensagens": 15,
+    "duracao_estimada": "6 minutos"
+  }
+} 
