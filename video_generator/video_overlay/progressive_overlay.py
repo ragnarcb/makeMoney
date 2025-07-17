@@ -41,6 +41,12 @@ class ProgressiveMessageOverlay:
             logger.error(f"Error loading/cropping base image: {e}")
             raise
 
+    def _adjust_message_coordinates(self, top_padding: int):
+        """Adjust message coordinates to account for the cropping offset."""
+        for coord in self.message_coordinates:
+            coord['y'] = coord['y'] - top_padding
+        logger.debug(f"Adjusted message coordinates by {top_padding} pixels")
+
     def _crop_whatsapp_borders(self) -> Image.Image:
         """Automatically detect and crop WhatsApp borders to show only the chat area."""
         # Convert to RGBA if needed
@@ -53,12 +59,9 @@ class ProgressiveMessageOverlay:
             top_y = min(coord['y'] for coord in self.message_coordinates)
             bottom_y = max(coord['y'] + coord['height'] for coord in self.message_coordinates)
             
-            # Adjust Y-axis alignment by 23 pixels
-            top_y = max(0, top_y - 23)
-            bottom_y = min(height, bottom_y -23)
-            # Add some padding but be more aggressive about removing borders
-            top_padding = max(0, top_y - 50)  # Reduced from 100 to 50
-            bottom_padding = min(height, bottom_y + 50)  # Reduced from 100 to 50
+            # Add 15px padding for top and bottom messages
+            top_padding = max(0, top_y - 15)
+            bottom_padding = min(height, bottom_y + 15)
             
             logger.debug(f"Auto-crop boundaries: top={top_padding}, bottom={bottom_padding}")
             
@@ -66,17 +69,31 @@ class ProgressiveMessageOverlay:
             cropped = self.base_image.crop((0, top_padding, width, bottom_padding))
         else:
             # Fallback: crop more aggressively to remove borders
-            top_crop = int(height * 0.25)  # Increased from 0.2 to 0.25
-            bottom_crop = int(height * 0.80)  # Reduced from 0.85 to 0.80           cropped = self.base_image.crop((0, top_crop, width, bottom_crop))
+            top_crop = int(height * 0.25)
+            bottom_crop = int(height * 0.80)
+            cropped = self.base_image.crop((0, top_crop, width, bottom_crop))
+            top_padding = top_crop
             logger.debug(f"Fallback crop: top={top_crop}, bottom={bottom_crop}")
         
         # Remove the d7d2d2 colored borders (WhatsApp UI elements)
         cropped = self._remove_whatsapp_borders(cropped)
         
         # Ensure cropped is RGBA
-        if cropped.mode != 'RGBA':           cropped = cropped.convert('RGBA')
+        if cropped.mode != 'RGBA':
+            cropped = cropped.convert('RGBA')
+        
+        # Adjust message coordinates to match the cropped image
+        self._adjust_coordinates_for_cropping(top_padding)
+        
         return cropped
-    
+
+    def _adjust_coordinates_for_cropping(self, top_padding: int):
+        """Adjust message coordinates to match the cropped image."""
+        for coord in self.message_coordinates:
+            # Adjust Y coordinate to account for the cropping
+            coord['y'] = coord['y'] - top_padding
+        logger.debug(f"Adjusted message coordinates by {top_padding} pixels for cropping")
+
     def _remove_whatsapp_borders(self, image: Image.Image) -> Image.Image:
         """Remove WhatsApp UI borders with color d7d2d2."""
         # Convert to RGB for color detection
@@ -85,7 +102,7 @@ class ProgressiveMessageOverlay:
         
         # Define the border color (d7d2d2)
         border_color = (215, 210, 210)  # RGB equivalent of d7d2d2
-        tolerance = 20  # Color tolerance for detection
+        tolerance = 10  # Reduced tolerance to be less aggressive
         
         # Find the actual content boundaries by removing border-colored areas
         left_bound = 0
@@ -107,6 +124,8 @@ class ProgressiveMessageOverlay:
         cropped = image.crop((left_bound, 0, right_bound, height))
         logger.debug(f"Removed borders: left={left_bound}, right={right_bound}, new width={cropped.width}")
         
+        # No coordinate adjustments needed
+        
         return cropped
     
     def _is_border_color(self, image: Image.Image, x: int, y: int, target_color: tuple, tolerance: int) -> bool:
@@ -116,6 +135,25 @@ class ProgressiveMessageOverlay:
             return all(abs(p - t) <= tolerance for p, t in zip(pixel, target_color))
         except IndexError:
             return False
+
+    def _add_round_borders(self, image: Image.Image) -> Image.Image:
+        """Add round borders to the message image."""
+        # Create a new image with rounded corners
+        width, height = image.size
+        radius = 15 # radius
+        
+        # Create a mask for rounded corners
+        mask = Image.new('L', (width, height), 0)
+        draw = ImageDraw.Draw(mask)
+        
+        # Draw rounded rectangle mask
+        draw.rounded_rectangle([(0, 0), (width-1, height-1)], radius=radius, fill=255)
+        
+        # Apply the mask to create rounded corners
+        result = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+        result.paste(image, (0, 0), mask=mask)
+        
+        return result
 
     def create_progressive_frames(self, audio_durations: List[float], fps: int = 30, 
                                  start_buffer: float = 1.0, end_buffer: float = 3.0, 
@@ -158,7 +196,8 @@ class ProgressiveMessageOverlay:
                 frames_for_message = int(duration * fps)
                 logger.info(f"Message {msg_idx + 1}: {frames_for_message} frames ({duration:.2f}s)")
                 for frame_idx in range(frames_for_message):
-                    # Show exactly i+1 messages (not i+2)
+                    # Show exactly the current message being spoken (i+1)
+                    # For first message (i=0), show 1 message. For second message (i=1), show 2 messages, etc.
                     frame_path = self._create_group_frame(group_messages, i + 1, current_frame)
                     frame_paths.append(frame_path)
                     current_frame += 1
@@ -192,17 +231,66 @@ class ProgressiveMessageOverlay:
                 last_msg_idx = messages_to_show[-1]
                 first_coord = self.message_coordinates[first_msg_idx]
                 last_coord = self.message_coordinates[last_msg_idx]
-                top_y = max(0, first_coord['y'] - 20)
-                bottom_y = min(self.cropped_image.height, last_coord['y'] + last_coord['height'] + 20)
+                
+                # Calculate crop boundaries with natural spacing
+                top_y = self._calculate_top_boundary(first_msg_idx, messages_to_show)
+                bottom_y = self._calculate_bottom_boundary(last_msg_idx, messages_to_show)
+                
                 cropped_portion = self.cropped_image.crop((0, top_y, self.cropped_image.width, bottom_y))
                 # Ensure cropped_portion is RGBA
                 if cropped_portion.mode != 'RGBA':
                     cropped_portion = cropped_portion.convert('RGBA')
-                frame.paste(cropped_portion, (0, 0), mask=cropped_portion)
+                
+                # Add round borders to the messages
+                frame_with_borders = self._add_round_borders(cropped_portion)
+                
+                frame.paste(frame_with_borders, (0, 0), mask=frame_with_borders)
                 logger.debug(f"Frame {frame_number}: Showing messages {[m+1 for m in messages_to_show]} (y={top_y}-{bottom_y})")
         frame_path = os.path.join(self.output_dir, f"frame_{frame_number:06d}.png")
         frame.save(frame_path)
         return frame_path
+
+    def _calculate_top_boundary(self, first_msg_idx: int, messages_to_show: List[int]) -> int:
+        """Calculate the top boundary for cropping with natural spacing."""
+        first_coord = self.message_coordinates[first_msg_idx]
+        
+        # If this is the first message in the group, add 15px padding above
+        if first_msg_idx == messages_to_show[0]:
+            return max(0, first_coord['y'] - 15)
+        
+        # If there's a previous message, cut halfway between them
+        prev_msg_idx = first_msg_idx - 1
+        if prev_msg_idx >= 0:
+            prev_coord = self.message_coordinates[prev_msg_idx]
+            prev_bottom = prev_coord['y'] + prev_coord['height']
+            current_top = first_coord['y']
+            distance = current_top - prev_bottom
+            cut_point = prev_bottom + (distance // 2)
+            return max(0, cut_point)
+        
+        # Fallback: 15px padding above
+        return max(0, first_coord['y'] - 15)
+
+    def _calculate_bottom_boundary(self, last_msg_idx: int, messages_to_show: List[int]) -> int:
+        """Calculate the bottom boundary for cropping with natural spacing."""
+        last_coord = self.message_coordinates[last_msg_idx]
+        
+        # If this is the last message in the group, add 15px padding below
+        if last_msg_idx == messages_to_show[-1]:
+            return min(self.cropped_image.height, last_coord['y'] + last_coord['height'] + 15)
+        
+        # If there's a next message, cut halfway between them
+        next_msg_idx = last_msg_idx + 1
+        if next_msg_idx < len(self.message_coordinates):
+            next_coord = self.message_coordinates[next_msg_idx]
+            current_bottom = last_coord['y'] + last_coord['height']
+            next_top = next_coord['y']
+            distance = next_top - current_bottom
+            cut_point = current_bottom + (distance // 2)
+            return min(self.cropped_image.height, cut_point)
+        
+        # Fallback: 15px padding below
+        return min(self.cropped_image.height, last_coord['y'] + last_coord['height'] + 15)
 
     def _create_empty_frame(self, frame_number: int) -> str:
         """Create an empty frame (for buffers)."""

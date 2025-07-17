@@ -22,7 +22,7 @@ def generate_chat(participants, custom_prompt=None):
     else:
         # Default funny conversation prompt
         prompt = (
-            f"Gere uma conversa engraçada de WhatsApp entre duas pessoas chamadas {sender} e {receiver}. "
+            f"Mantenha curto, 4 mensagens. Gere uma conversa engraçada de WhatsApp entre duas pessoas chamadas {sender} e {receiver}. "
             "A conversa deve ser completa, com início, meio e fim, e deve construir até o ponto principal da piada, entregando a punchline no final. "
             "Formate como uma lista de objetos de mensagem, cada um com 'from', 'to' e 'text'. "
             f"'from' deve ser '{sender}' ou '{receiver}', 'to' deve ser o outro participante. "

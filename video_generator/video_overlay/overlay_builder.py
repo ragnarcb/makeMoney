@@ -4,10 +4,17 @@ from moviepy.video.io.VideoFileClip import VideoFileClip
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
 from moviepy.audio.io.AudioFileClip import AudioFileClip
-from moviepy.audio.AudioClip import concatenate_audioclips
+from moviepy.audio.AudioClip import concatenate_audioclips, AudioArrayClip
 import moviepy
+import numpy as np
 
-def build_video(frame_paths, audio_paths, output_path, background_video_path=None, fps=30):
+def make_silence(duration, fps=44100):
+    # Returns a silent AudioArrayClip of the given duration (in seconds)
+    arr = np.zeros((int(duration * fps), 1), dtype=np.float32)
+    return AudioArrayClip(arr, fps)
+
+def build_video(frame_paths, audio_paths, output_path, background_video_path=None, fps=30, 
+                start_buffer=1.0, end_buffer=3.0, pause_between_messages=0.5, audio_fps=44100):
     """
     Build video with WhatsApp chat frames overlaid at the top of a looping background video with TTS audio.
     """
@@ -22,10 +29,28 @@ def build_video(frame_paths, audio_paths, output_path, background_video_path=Non
     # Create the chat overlay video (from frames)
     chat_clip = ImageSequenceClip(frame_paths, fps=fps)
 
-    # Concatenate all audio clips
-    logger.info("Concatenating TTS audio clips...")
+    # Concatenate all audio clips with silence buffers and pauses
+    logger.info("Concatenating TTS audio clips with silence buffers and pauses...")
     audio_clips = [AudioFileClip(audio_path) for audio_path in audio_paths]
-    combined_audio = concatenate_audioclips(audio_clips)
+
+    # Calculate durations for each TTS audio
+    tts_durations = [clip.duration for clip in audio_clips]
+    logger.info(f"TTS durations: {tts_durations}")
+
+    # Build the audio track: start_silence + [tts, pause, tts, pause, ...] + end_silence
+    clips = []
+    # Start buffer
+    if start_buffer > 0:
+        clips.append(make_silence(start_buffer, fps=audio_fps))
+    # Interleave TTS and pauses
+    for i, tts_clip in enumerate(audio_clips):
+        clips.append(tts_clip)
+        if i < len(audio_clips) - 1 and pause_between_messages > 0:
+            clips.append(make_silence(pause_between_messages, fps=audio_fps))
+    # End buffer
+    if end_buffer > 0:
+        clips.append(make_silence(end_buffer, fps=audio_fps))
+    combined_audio = concatenate_audioclips(clips)
 
     if background_video_path and os.path.exists(background_video_path):
         logger.info(f"Loading and looping background video: {background_video_path}")

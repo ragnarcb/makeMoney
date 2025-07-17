@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw
 
 # Add the video_generator to path so we can import the chat generator
 sys.path.append('video_generator')
-from whatsapp_gen.chat_generator import generate_chat
+#from whatsapp_gen.chat_generator import generate_chat
 
 API_URL = "http://localhost:3001"
 
