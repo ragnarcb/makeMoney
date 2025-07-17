@@ -2,56 +2,91 @@
   {
     "from": "Ana",
     "to": "Bruno",
-    "text": "Oi, Bruno! Você sabia que eu comecei a praticar meditação?"
+    "text": "Oi Bruno, tudo bem?"
   },
   {
     "from": "Bruno",
     "to": "Ana",
-    "text": "Sério? E está ajudando? Você está mais Zen?"
+    "text": "Oi Ana! Tudo tranquilo e com você?"
   },
   {
     "from": "Ana",
     "to": "Bruno",
-    "text": "Totalmente! Agora eu durmo duas vezes mais rápido durante as reuniões! 😂"
+    "text": "Tudo ótimo! Você já arrumou aquela confusão com o seu gato e a impressora?"
   },
   {
     "from": "Bruno",
     "to": "Ana",
-    "text": "Hahaha muito zen mesmo! Está usando algum aplicativo?"
+    "text": "Ah, nem me fala. O gato saiu imprimindo patinhas por toda a casa..."
   },
   {
     "from": "Ana",
     "to": "Bruno",
-    "text": "Sim, estou usando um que tem um monte de sons de natureza!"
+    "text": "Hahaha, quer dizer que ele virou um assistente de cópias?"
   },
   {
     "from": "Bruno",
     "to": "Ana",
-    "text": "E qual é o melhor som para você relaxar?"
+    "text": "Mais ou menos, ele só sabe fazer cópias dele mesmo!"
   },
   {
     "from": "Ana",
     "to": "Bruno",
-    "text": "O som do silêncio quando o despertador não toca de manhã."
+    "text": "E como você resolveu a situação?"
   },
   {
     "from": "Bruno",
     "to": "Ana",
-    "text": "Haha, esse é um clássico. Mas meditar realmente te ajuda mais em que?"
+    "text": "Coloquei um vídeo de pássaros na TV. Agora ele acha que é um gato de reality show."
   },
   {
     "from": "Ana",
     "to": "Bruno",
-    "text": "Ah, me ajuda a encontrar coisas."
+    "text": "Ele tem acompanhado muito o Big Brother, é?"
   },
   {
     "from": "Bruno",
     "to": "Ana",
-    "text": "Tipo iluminação interior e essas coisas?"
+    "text": "Acho que sim, ele fica encarando os pássaros como se fossem votar nele a qualquer momento."
   },
   {
     "from": "Ana",
     "to": "Bruno",
-    "text": "Não, tipo as chaves e o controle remoto. 🧘‍♀️"
+    "text": "Hahaha, cuidado para ele não começar a pedir para colocar o confinamento no PPV!"
+  },
+  {
+    "from": "Bruno",
+    "to": "Ana",
+    "text": "Já pensou? Ia ser o único participante que dorme o dia todo e só acorda para comer e fazer bagunça."
+  },
+  {
+    "from": "Ana",
+    "to": "Bruno",
+    "text": "Isso soa como um vencedor nato! Por falar nisso, você vai ao parque no sábado?"
+  },
+  {
+    "from": "Bruno",
+    "to": "Ana",
+    "text": "Vou sim, vamos fazer aquele piquenique geek?"
+  },
+  {
+    "from": "Ana",
+    "to": "Bruno",
+    "text": "Com certeza! Agora me diz, o gato vai junto?"
+  },
+  {
+    "from": "Bruno",
+    "to": "Ana",
+    "text": "Vai sim, mas só se ele prometer não imprimir mais patinhas no bolo!"
+  },
+  {
+    "from": "Ana",
+    "to": "Bruno",
+    "text": "Promessa de gato vale, ele que se cuide! Até sábado então."
+  },
+  {
+    "from": "Bruno",
+    "to": "Ana",
+    "text": "Até sábado, Ana! E vou trazer um mouse extra, só por precaução! Hahaha"
   }
 ]

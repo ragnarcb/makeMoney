@@ -1,218 +1,304 @@
-# WhatsApp Screenshot Service (Node.js)
+# WhatsApp Screenshot Service
 
-A microservice for generating WhatsApp-style chat images from JSON messages, using Puppeteer and a React frontend. Designed to be called by other services (e.g., Python orchestrator) via HTTP API.
-
----
+A Node.js service for generating WhatsApp chat screenshots using Puppeteer and React. This service supports both local file saving and cloud upload modes, with full async support for handling multiple concurrent individual requests.
 
 ## Features
-- Renders WhatsApp chat images from JSON messages
-- Crops output to the chat area (no extra whitespace)
-- Two modes:
-  - **Local Save** (default): saves images to disk
-  - **Upload**: uploads images to a remote service (e.g., S3, Imgur) if enabled
-- Handles multiple requests concurrently (async)
-- Designed for use as a background service
 
----
+- 🚀 **Async Processing**: Handles many individual requests concurrently (configurable concurrency)
+- 📁 **Dual Output Modes**: Local save (default) or cloud upload
+- 🎨 **Customizable**: Configurable image sizes and output formats
+- 🔧 **Production Ready**: Health checks, error handling, and logging
 
-## Usage
+## Quick Start
 
-### Start the Service
-```sh
+### Prerequisites
+
+- Node.js 16+
+- npm or yarn
+
+### Installation
+
+```bash
 cd whatsapp-clone
 npm install
-npm run build
+```
+
+### Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+# Server Configuration
+PORT=3001
+NODE_ENV=production
+
+# Output Mode (local/upload)
+UPLOAD_MODE=off
+
+# Upload Service Configuration (when UPLOAD_MODE=on)
+UPLOAD_SERVICE=s3
+AWS_ACCESS_KEY_ID=your_access_key
+AWS_SECRET_ACCESS_KEY=your_secret_key
+AWS_REGION=us-east-1
+AWS_BUCKET=your-bucket-name
+
+# Concurrency Settings
+MAX_CONCURRENT_REQUESTS=5
+BROWSER_TIMEOUT=30000
+
+# Output Settings
+DEFAULT_IMAGE_SIZE=1920,1080
+OUTPUT_DIR=./output
+```
+
+### Running the Service
+
+```bash
+# Development mode
+npm run dev
+
+# Production mode
 npm start
 ```
 
-The service will run on `http://localhost:3001` by default.
+The service will be available at `http://localhost:3001`
 
----
+## API Reference
 
-## API
+### Health Check
 
-### `POST /api/generate-screenshots`
-Generate a WhatsApp chat image from messages.
-
-**Request JSON:**
-```json
-{
-  "messages": [ ... ],      // Array of message objects (see below)
-  "participants": ["Ana", "Bruno"],
-  "outputDir": "output_folder", // Where to save images (if local mode)
-  "img_size": [1920, 1080] // (optional) [height, width]
-}
-```
-
-**Message format:**
-```json
-{
-  "from": "Ana",
-  "to": "Bruno",
-  "text": "Oi!"
-}
+```http
+GET /api/health
 ```
 
 **Response:**
 ```json
 {
-  "success": true,
-  "imagePaths": ["/absolute/path/to/whatsapp_full.png"],
-  "message": "Generated 1 screenshots successfully"
+  "status": "ok",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "message": "WhatsApp screenshot server is running"
 }
 ```
 
----
+### Generate Screenshot (Single Request)
 
-### Batch Mode (Multiple Chats)
-You can POST an array of message sets:
+```http
+POST /api/generate-screenshots
+Content-Type: application/json
+```
+
+**Request Body:**
 ```json
 {
-  "batch": [
-    { "messages": [...], "participants": ["Ana", "Bruno"] },
-    { "messages": [...], "participants": ["João", "Maria"] }
+  "messages": [
+    { "text": "Hello!", "from": "Alice" },
+    { "text": "Hi there!", "from": "Bob" }
   ],
-  "outputDir": "output_folder"
-}
-```
-Response will be an array of image paths.
-
----
-
-## Modes
-
-### Local Save (default)
-- Images are saved to the specified `outputDir` on disk.
-
-### Upload Mode
-- Set `UPLOAD_MODE=on` in your environment or `.env` file.
-- Set `UPLOAD_SERVICE_URL` and any required credentials.
-- Images will be uploaded after generation; response will include remote URLs.
-- (You must implement/upload logic in `server.js` for your chosen service.)
-
----
-
-## Environment Variables
-- `PORT` - Port to run the service (default: 3001)
-- `UPLOAD_MODE` - Set to `on` to enable upload mode (default: off)
-- `UPLOAD_SERVICE_URL` - URL of the upload service (if using upload mode)
-- `UPLOAD_API_KEY` - API key/token for upload service (if needed)
-
----
-
-## Concurrency/Async
-- The service handles multiple requests in parallel.
-- Each screenshot job is independent and does not block others.
-- (You may set a concurrency limit in `server.js` if needed for resource control.)
-
----
-
-## Example: Python Client
-```python
-import requests
-payload = {
-    "messages": [...],
-    "participants": ["Ana", "Bruno"],
-    "outputDir": "test_output"
-}
-resp = requests.post("http://localhost:3001/api/generate-screenshots", json=payload)
-print(resp.json())
-```
-
----
-
-## Health Check
-- `GET /api/health` returns status JSON.
-
----
-
-## Notes
-- The React app must be built (`npm run build`) before starting the service.
-- The `.whatsapp-container` selector is used for cropping; adjust if your UI changes.
-- For upload mode, you must implement the upload logic in `server.js` (see comments in code).
-
-```json
-{
-  "from": "Ana",
-  "to": "Bruno",
-  "text": "Oi!"
+  "participants": ["Alice", "Bob"],
+  "outputDir": "./output",
+  "img_size": [1920, 1080]
 }
 ```
 
-**Response:**
+**Response (Local Save Mode):**
 ```json
 {
   "success": true,
-  "imagePaths": ["/absolute/path/to/whatsapp_full.png"],
-  "message": "Generated 1 screenshots successfully"
+  "imagePaths": ["/path/to/screenshot.png"],
+  "messageCoordinates": [
+    {
+      "index": 0,
+      "y": 120,
+      "height": 45,
+      "width": 200,
+      "from": "Alice",
+      "text": "Hello!",
+      "isMine": false
+    },
+    {
+      "index": 1,
+      "y": 180,
+      "height": 52,
+      "width": 180,
+      "from": "Bob",
+      "text": "Hi there!",
+      "isMine": true
+    }
+  ],
+  "message": "Generated 1 screenshot successfully"
 }
 ```
 
----
-
-### Batch Mode (Multiple Chats)
-You can POST an array of message sets:
+**Response (Upload Mode):**
 ```json
 {
-  "batch": [
-    { "messages": [...], "participants": ["Ana", "Bruno"] },
-    { "messages": [...], "participants": ["João", "Maria"] }
+  "success": true,
+  "imageUrls": ["https://your-bucket.s3.amazonaws.com/screenshot.png"],
+  "messageCoordinates": [
+    {
+      "index": 0,
+      "y": 120,
+      "height": 45,
+      "width": 200,
+      "from": "Alice",
+      "text": "Hello!",
+      "isMine": false
+    }
   ],
-  "outputDir": "output_folder"
+  "message": "Generated and uploaded 1 screenshot successfully"
 }
 ```
-Response will be an array of image paths.
 
----
+## Output Modes
 
-## Modes
+### Local Save Mode (Default)
 
-### Local Save (default)
-- Images are saved to the specified `outputDir` on disk.
+When `UPLOAD_MODE=off`, screenshots are saved locally to the specified `outputDir`.
 
 ### Upload Mode
-- Set `UPLOAD_MODE=on` in your environment or `.env` file.
-- Set `UPLOAD_SERVICE_URL` and any required credentials.
-- Images will be uploaded after generation; response will include remote URLs.
-- (You must implement/upload logic in `server.js` for your chosen service.)
 
----
+When `UPLOAD_MODE=on`, screenshots are uploaded to a cloud service after generation.
 
-## Environment Variables
-- `PORT` - Port to run the service (default: 3001)
-- `UPLOAD_MODE` - Set to `on` to enable upload mode (default: off)
-- `UPLOAD_SERVICE_URL` - URL of the upload service (if using upload mode)
-- `UPLOAD_API_KEY` - API key/token for upload service (if needed)
+**Supported Services:**
+- **AWS S3**: Upload to S3 bucket
+- **Imgur**: Upload to Imgur (requires API key)
+- **Custom**: Implement your own upload service
 
----
+## Message Format
 
-## Concurrency/Async
-- The service handles multiple requests in parallel.
-- Each screenshot job is independent and does not block others.
-- (You may set a concurrency limit in `server.js` if needed for resource control.)
+Messages should follow this structure:
 
----
-
-## Example: Python Client
-```python
-import requests
-payload = {
-    "messages": [...],
-    "participants": ["Ana", "Bruno"],
-    "outputDir": "test_output"
+```typescript
+interface Message {
+  text: string;        // Message content
+  from: string;        // Sender name
+  timestamp?: string;  // Optional timestamp
 }
-resp = requests.post("http://localhost:3001/api/generate-screenshots", json=payload)
-print(resp.json())
 ```
 
----
+## Error Handling
 
-## Health Check
-- `GET /api/health` returns status JSON.
+The service returns appropriate HTTP status codes:
 
----
+- `200`: Success
+- `400`: Bad request (invalid input)
+- `429`: Too many requests (rate limited)
+- `500`: Internal server error
 
-## Notes
-- The React app must be built (`npm run build`) before starting the service.
-- The `.whatsapp-container` selector is used for cropping; adjust if your UI changes.
-- For upload mode, you must implement the upload logic in `server.js` (see comments in code).
+**Error Response Format:**
+```json
+{
+  "success": false,
+  "error": "Error description",
+  "code": "ERROR_CODE"
+}
+```
+
+## Performance & Concurrency
+
+### Concurrent Request Handling
+
+The service uses a queue system to handle multiple individual requests:
+
+- **Default**: 5 concurrent requests
+- **Configurable**: Set via `MAX_CONCURRENT_REQUESTS`
+- **Queue Management**: Automatic request queuing when at capacity
+
+### Browser Management
+
+- **Browser Pool**: Reuses browser instances for efficiency
+- **Timeout Handling**: Configurable timeouts per request
+- **Resource Cleanup**: Automatic cleanup of browser resources
+
+## Development
+
+### Project Structure
+
+```
+whatsapp-clone/
+├── server.js              # Main server file
+├── package.json           # Dependencies and scripts
+├── public/                # Static files
+├── src/                   # React app source
+│   ├── components/        # React components
+│   └── types/             # TypeScript types
+├── output/                # Generated screenshots (local mode)
+└── README.md              # This file
+```
+
+### Adding Custom Upload Services
+
+To add a custom upload service, modify the `uploadService.js` file:
+
+```javascript
+// Example custom upload service
+async function uploadToCustomService(filePath, options) {
+  // Your upload logic here
+  return {
+    url: 'https://your-service.com/file.png',
+    success: true
+  };
+}
+
+module.exports = {
+  uploadToCustomService
+};
+```
+
+### Testing
+
+```bash
+# Run tests
+npm test
+
+# Test with sample data
+curl -X POST http://localhost:3001/api/generate-screenshots \
+  -H "Content-Type: application/json" \
+  -d @test_messages.json
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Browser Launch Failures**
+   - Ensure you have Chrome/Chromium installed
+   - Check system resources (memory, disk space)
+
+2. **Timeout Errors**
+   - Increase `BROWSER_TIMEOUT` in environment variables
+   - Check network connectivity
+3. **Upload Failures**
+   - Verify API keys and credentials
+   - Check service-specific error logs
+
+### Logs
+
+The service provides detailed logging:
+
+```bash
+# View logs
+tail -f logs/app.log
+
+# Debug mode
+DEBUG=* npm start
+```
+
+## License
+
+MIT License - see LICENSE file for details.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
+
+## Support
+
+For issues and questions:
+- Create an issue on GitHub
+- Check the troubleshooting section
+- Review the API documentation
