@@ -16,13 +16,6 @@ video_generator/temp_audio
 */venv
 */node_modules
 */__pycache__
-*/node_modules
-*/dist
-*/build
-*/coverage
-*/logs
-*/temp
-*/tmp
-*/screenshots
-*/screenshots_old
-*/screenshots_new
+*/__pycache__/*
+video_generator/temp_frames/*
+whatsapp-clone/temp_chat_imgs/*
