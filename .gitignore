@@ -16,4 +16,6 @@ video_generator/temp_audio
 */venv
 */node_modules
 */__pycache__
+*/__pycache__/*
 video_generator/temp_frames/*
+whatsapp-clone/temp_chat_imgs/*

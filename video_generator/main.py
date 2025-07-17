@@ -28,6 +28,7 @@ LANG = 'pt-br'
 FPS = 30
 IMG_SIZE = (1920, 1080)  # height, width (portrait)
 
+
 def main():
     logger.info("Starting WhatsApp video generation pipeline")
     
@@ -36,9 +37,13 @@ def main():
     parser.add_argument("--participants", nargs=2, default=PARTICIPANTS, help="Participant names")
     parser.add_argument("--use-s3", action="store_true", help="Use S3 storage for files")
     parser.add_argument("--node-url", type=str, default="http://localhost:3010", help="Node.js service URL")
+    parser.add_argument("--messages-per-group", type=int, default=4, help="Number of messages to show at once")
+    parser.add_argument("--start-buffer", type=float, default=1.0, help="Buffer (seconds) at start of video")
+    parser.add_argument("--end-buffer", type=float, default=3.0, help="Buffer (seconds) at end of video")
     args = parser.parse_args()
 
     logger.info(f"Configuration: participants={args.participants}, lang={LANG}, fps={FPS}, img_size={IMG_SIZE}")
+    logger.info(f"Progressive overlay: messages_per_group={args.messages_per_group}, start_buffer={args.start_buffer}, end_buffer={args.end_buffer}")
     logger.debug(f"Arguments: {vars(args)}")
 
     logger.info("Generating WhatsApp chat JSON...")
@@ -97,7 +102,8 @@ def main():
         overlay = ProgressiveMessageOverlay(
             screenshot_path=screenshot_path,
             message_coordinates=message_coordinates,
-            output_dir=TEMP_FRAMES_DIR
+            output_dir=TEMP_FRAMES_DIR,
+            messages_per_group=args.messages_per_group
         )
 
         # Get audio durations for frame generation
@@ -113,7 +119,12 @@ def main():
         logger.info(f"Audio durations calculated: {audio_durations}")
 
         # Generate progressive frames
-        frame_paths = overlay.create_progressive_frames(audio_durations, fps=FPS)
+        frame_paths = overlay.create_progressive_frames(
+            audio_durations, 
+            fps=FPS, 
+            start_buffer=args.start_buffer, 
+            end_buffer=args.end_buffer
+        )
         logger.success(f"Generated {len(frame_paths)} progressive frames")
 
     except Exception as e:
@@ -131,11 +142,13 @@ def main():
 
     logger.info("Building the final video...")
     try:
-        # Use the first frame as the base image for video generation
-        # The overlay builder will handle the progressive frames
-        logger.debug(f"Building video with {len(audio_paths)} audio clips and background: {background_video}")
-        build_video([screenshot_path], audio_paths, OUTPUT_VIDEO_PATH, 
-                   background_video_path=background_video, fps=FPS)
+        logger.debug(f"Building video with {len(frame_paths)} frames and background: {background_video}")
+        build_video(
+            frame_paths,
+            OUTPUT_VIDEO_PATH,
+            background_video_path=background_video,
+            fps=FPS
+        )
         logger.success(f"Video saved to {OUTPUT_VIDEO_PATH}")
     except Exception as e:
         error_msg = f"Failed to build video: {e}"
