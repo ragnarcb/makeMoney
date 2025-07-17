@@ -122,17 +122,21 @@ async function generateProgressiveScreenshots(messages, outputDir, imgSize = [19
         // Wait for the React app to update (simple timeout)
         await page.waitForTimeout(2000);
 
-        // Take a single screenshot
+        // Get the bounding box of the chat container
+        const chatBox = await page.$('.whatsapp-container');
+        const boundingBox = await chatBox.boundingBox();
+
+        // Take a screenshot of only the chat area
         const filename = `whatsapp_full.png`;
         const screenshotPath = path.resolve(path.join(outputDir, filename));
         await page.screenshot({
             path: screenshotPath,
             fullPage: false,
             clip: {
-                x: 0,
-                y: 0,
-                width: imgSize[1],
-                height: imgSize[0]
+                x: Math.round(boundingBox.x),
+                y: Math.round(boundingBox.y),
+                width: Math.round(boundingBox.width),
+                height: Math.round(boundingBox.height)
             }
         });
         console.log(`Saved screenshot: ${screenshotPath}`);
@@ -155,6 +159,10 @@ app.listen(PORT, () => {
     console.log(`WhatsApp screenshot server running on port ${PORT}`);
     console.log(`React app will be served on http://localhost:${PORT}`);
     console.log(`API endpoints:`);
+    console.log(`  POST /api/generate-screenshots - Generate screenshots`);
+    console.log(`  GET  /api/messages - Get current messages`);
+    console.log(`  GET  /api/health - Health check`);
+}); 
     console.log(`  POST /api/generate-screenshots - Generate screenshots`);
     console.log(`  GET  /api/messages - Get current messages`);
     console.log(`  GET  /api/health - Health check`);
