@@ -1,0 +1,27 @@
+# TTS Libraries compatíveis com Python 3.12
+coqui-tts>=0.27.0   # Versão atualizada com suporte Python 3.12
+realtimetts[all]    # Sistema TTS moderno com múltiplos engines
+
+# Core dependencies
+torch>=2.0.0        # PyTorch para processamento neural
+torchaudio>=2.0.0   # Áudio processing
+numpy>=1.21.0       # Computação numérica
+soundfile>=0.12.1   # Leitura/escrita de arquivos de áudio
+librosa>=0.10.0     # Análise de áudio
+
+# Audio processing and playback
+pygame>=2.1.0       # Para reprodução de áudio
+pyaudio>=0.2.11     # Streaming de áudio (opcional)
+playsound>=1.3.0    # Reprodução simples de áudio
+
+# Utilities
+requests>=2.25.0    # Para downloads
+tqdm>=4.62.0        # Progress bars
+pydub>=0.25.1       # Manipulação de áudio
+
+# Text processing
+nltk>=3.6.0         # Natural language toolkit
+stanza>=1.4.0       # Processamento avançado de texto
+
+# System utilities
+psutil>=5.8.0       # System monitoring 
