@@ -1,6 +1,0 @@
-playwright
-asyncio
-argparse
-datetime
-pathlib
-json
