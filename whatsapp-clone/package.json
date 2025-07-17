@@ -10,12 +10,12 @@
     "serve": "serve -s build -l 8089"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "puppeteer": "^21.5.2",
-    "cors": "^2.8.5",
     "body-parser": "^1.20.2",
-    "path": "^0.12.7",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
     "fs-extra": "^11.1.1",
+    "path": "^0.12.7",
+    "puppeteer": "^21.5.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
@@ -23,10 +23,29 @@
     "web-vitals": "^2.1.4"
   },
   "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
     "nodemon": "^3.0.1",
     "serve": "^14.2.1"
   },
-  "keywords": ["whatsapp", "screenshot", "puppeteer", "react"],
+  "keywords": [
+    "whatsapp",
+    "screenshot",
+    "puppeteer",
+    "react"
+  ],
   "author": "",
-  "license": "MIT"
-} 
+  "license": "MIT",
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

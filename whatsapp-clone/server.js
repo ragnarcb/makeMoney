@@ -17,6 +17,21 @@ app.use(express.static(path.join(__dirname, 'build')));
 let currentMessages = [];
 let currentParticipants = ['Ana', 'Bruno'];
 
+// Convert Python message format to React app format
+function convertMessages(pythonMessages, participants) {
+    const [sender, receiver] = participants;
+    return pythonMessages.map((msg, index) => ({
+        id: (index + 1).toString(),
+        texto: msg.text,
+        usuario: {
+            id: msg.from === sender ? 'user1' : 'user2',
+            nome: msg.from
+        },
+        timestamp: new Date(Date.now() + index * 60000).toISOString(),
+        isMine: msg.from === receiver
+    }));
+}
+
 // API endpoint to receive messages and generate screenshots
 app.post('/api/generate-screenshots', async (req, res) => {
     try {
@@ -29,12 +44,15 @@ app.post('/api/generate-screenshots', async (req, res) => {
         // Ensure output directory exists
         await fs.ensureDir(outputDir);
         
+        // Convert messages to React app format
+        const convertedMessages = convertMessages(messages, participants);
+        
         // Update the current messages for the React app
-        currentMessages = messages;
+        currentMessages = convertedMessages;
         currentParticipants = participants;
         
         // Generate progressive screenshots
-        const imagePaths = await generateProgressiveScreenshots(messages, outputDir, img_size);
+        const imagePaths = await generateProgressiveScreenshots(convertedMessages, outputDir, img_size);
         
         console.log(`Generated ${imagePaths.length} screenshots`);
         res.json({ 
@@ -81,68 +99,44 @@ async function generateProgressiveScreenshots(messages, outputDir, imgSize = [19
     
     try {
         const page = await browser.newPage();
-        
-        // Set viewport to phone aspect ratio (portrait)
         await page.setViewport({
-            width: imgSize[1], // width
-            height: imgSize[0], // height
+            width: imgSize[1],
+            height: imgSize[0],
             deviceScaleFactor: 1
         });
-        
-        // Navigate to the React app
         await page.goto(`http://localhost:${PORT}`, { 
             waitUntil: 'networkidle2',
             timeout: 30000 
         });
-        
-        // Wait for the React app to load
         await page.waitForSelector('.whatsapp-container', { timeout: 10000 });
-        
-        const imagePaths = [];
-        
-        // Generate progressive screenshots (1 message, 2 messages, etc.)
-        for (let i = 1; i <= messages.length; i++) {
-            console.log(`Generating screenshot ${i}/${messages.length}`);
-            
-            // Update the messages in the React app
-            await page.evaluate((msgCount, msgs) => {
-                // Update the messages array in the React app
-                window.currentMessages = msgs.slice(0, msgCount);
-                window.currentParticipants = window.currentParticipants || ['Ana', 'Bruno'];
-                
-                // Trigger a re-render by dispatching a custom event
-                window.dispatchEvent(new CustomEvent('updateMessages', {
-                    detail: {
-                        messages: window.currentMessages,
-                        participants: window.currentParticipants
-                    }
-                }));
-            }, i, messages);
-            
-            // Wait for the React app to update
-            await page.waitForTimeout(1000);
-            
-            // Take screenshot
-            const filename = `whatsapp_${i.toString().padStart(3, '0')}.png`;
-            const screenshotPath = path.join(outputDir, filename);
-            
-            await page.screenshot({
-                path: screenshotPath,
-                fullPage: false,
-                clip: {
-                    x: 0,
-                    y: 0,
-                    width: imgSize[1],
-                    height: imgSize[0]
-                }
-            });
-            
-            imagePaths.push(screenshotPath);
-            console.log(`Saved screenshot: ${screenshotPath}`);
-        }
-        
-        return imagePaths;
-        
+
+        // Inject all messages at once
+        await page.evaluate((msgs, participants) => {
+            window.currentMessages = msgs;
+            window.currentParticipants = participants;
+            window.dispatchEvent(new CustomEvent('updateMessages', {
+                detail: { messages: msgs, participants }
+            }));
+        }, messages, currentParticipants);
+
+        // Wait for the React app to update (simple timeout)
+        await page.waitForTimeout(2000);
+
+        // Take a single screenshot
+        const filename = `whatsapp_full.png`;
+        const screenshotPath = path.resolve(path.join(outputDir, filename));
+        await page.screenshot({
+            path: screenshotPath,
+            fullPage: false,
+            clip: {
+                x: 0,
+                y: 0,
+                width: imgSize[1],
+                height: imgSize[0]
+            }
+        });
+        console.log(`Saved screenshot: ${screenshotPath}`);
+        return [screenshotPath];
     } finally {
         await browser.close();
     }

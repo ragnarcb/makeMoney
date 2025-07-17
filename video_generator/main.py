@@ -42,6 +42,8 @@ def main():
     logger.info("Using Node.js service to generate WhatsApp images...")
     try:
         img_paths = get_chat_images(messages, args.participants, TEMP_IMG_DIR, img_size=IMG_SIZE)
+        # Convert to absolute paths
+        img_paths = [os.path.abspath(path) for path in img_paths]
         logger.success(f"Generated {len(img_paths)} WhatsApp images via Node.js service.")
     except Exception as e:
         logger.error(f"Failed to generate WhatsApp images: {e}")
