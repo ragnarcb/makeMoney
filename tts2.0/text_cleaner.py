@@ -54,38 +54,69 @@ class TextCleaner:
         return self.special_chars_pattern.sub('', text)
     
     def normalize_punctuation(self, text: str) -> str:
-        """Normaliza pontuação para melhor síntese TTS"""
+        """
+        MELHORADO: Normaliza pontuação de forma inteligente para evitar que TTS fale 'ponto'
+        mas preserva entonação natural das frases
+        """
         if not self.config.get('remove_dots', True):
             return text
         
-        # Remove apenas reticências múltiplas, mantendo pontos finais importantes
-        text = self.problematic_punctuation.sub('', text)
+        # 1. PRESERVAR ABREVIAÇÕES IMPORTANTES (não remover seus pontos)
+        abreviacoes = ['Dr.', 'Dra.', 'Sr.', 'Sra.', 'Prof.', 'Profa.', 'etc.', 'ex.', 'vs.', 'p.ex.']
+        marcadores_abrev = {}
+        for i, abrev in enumerate(abreviacoes):
+            marcador = f"__ABREV_{i}__"
+            if abrev in text:
+                text = text.replace(abrev, marcador)
+                marcadores_abrev[marcador] = abrev
         
-        # Substituir pontos finais por vírgulas para evitar cortes bruscos
-        # mas manter o significado
-        text = re.sub(r'\.(\s|$)', r',\1', text)
+        # 2. Remover apenas reticências múltiplas problemáticas
+        text = re.sub(r'\.{3,}', '', text)  # Remove ... .... etc
+        text = text.replace('…', '')  # Remove ellipsis unicode
         
-        # Remover pontuação que causa problemas específicos no TTS
-        problematic_chars = ['…', '–', '—', '°', '™', '®', '©']
+        # 3. TÉCNICA INTELIGENTE: Substituir pontos finais por vírgulas para manter entonação
+        # Isso evita que o TTS fale "ponto" mas mantém a pausa natural
+        text = re.sub(r'\.(\s+|$)', r',\1', text)  # Ponto final → vírgula
+        
+        # 4. Remover pontos isolados ou problemáticos (que não são finais)
+        text = re.sub(r'(\s)\.(\s)', r'\1\2', text)  # Remove pontos no meio
+        
+        # 5. Para frases que terminariam abruptamente, adicionar pausa natural
+        if text.strip() and not text.strip().endswith((',', '!', '?', ':')):
+            text = text.strip() + ','
+        
+        # 6. Restaurar abreviações importantes
+        for marcador, abrev_original in marcadores_abrev.items():
+            # Restaurar mas substituir ponto por vírgula para evitar TTS falar "ponto"
+            abrev_segura = abrev_original.replace('.', ',')
+            text = text.replace(marcador, abrev_segura)
+        
+        # 7. Remover pontuação que causa problemas específicos no TTS
+        problematic_chars = ['–', '—', '°', '™', '®', '©']
         for char in problematic_chars:
             text = text.replace(char, '')
         
         return text
     
     def add_speech_improvements(self, text: str) -> str:
-        """Adiciona melhorias específicas para síntese de fala"""
-        # Adicionar pausa pequena antes de pontuação importante
+        """
+        MELHORADO: Adiciona melhorias específicas para síntese de fala
+        Coordenado com normalize_punctuation para evitar conflitos
+        """
+        # Garantir pausas pequenas antes de pontuação importante
         text = re.sub(r'([,!?;:])', r' \1', text)
         
-        # Adicionar espaço após pontuação se não houver
+        # Garantir espaço após pontuação
         text = re.sub(r'([,!?;:])([^\s])', r'\1 \2', text)
         
-        # Garantir que frases terminem com uma pequena pausa
-        if text.strip() and not text.strip().endswith(('!', '?', ':')):
-            text = text.strip() + ' .'
+        # Como normalize_punctuation já adiciona vírgulas no final,
+        # só precisamos garantir que haja uma pausa se não houver pontuação
+        if text.strip() and not text.strip().endswith((',', '!', '?', ':', '.')):
+            text = text.strip() + ','
         
-        # Adicionar padding no final para evitar cortes
-        text = text.strip() + ' '
+        # Adicionar padding no final para evitar cortes bruscos
+        if text.strip():
+            text = text.strip() + ' '
         
         return text
     
