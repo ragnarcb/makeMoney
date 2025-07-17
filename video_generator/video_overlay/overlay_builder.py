@@ -43,10 +43,12 @@ def build_video(frame_paths, audio_paths, output_path, background_video_path=Non
         target_width = int(bg_clip.w * 0.8)
         target_height = int(chat_clip.h * target_width / chat_clip.w)
         chat_clip_resized = chat_clip.resized((target_width, target_height))
-        # Use with_position to place at the top
+        # Center horizontally and add vertical offset
+        x_center = (bg_clip.w - target_width) // 2
+        y_offset = 40  # pixels from the top
         composite = CompositeVideoClip([
             bg_clip,
-            chat_clip_resized.with_position((0, 0))
+            chat_clip_resized.with_position((x_center, y_offset))
         ], size=bg_clip.size)
         final_clip = composite.with_duration(total_duration)
     else:

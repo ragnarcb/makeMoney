@@ -118,13 +118,15 @@ class ProgressiveMessageOverlay:
             return False
 
     def create_progressive_frames(self, audio_durations: List[float], fps: int = 30, 
-                                 start_buffer: float = 1.0, end_buffer: float = 3.0) -> List[str]:
+                                 start_buffer: float = 1.0, end_buffer: float = 3.0, 
+                                 pause_between_messages: float = 0.5) -> List[str]:
         """Create progressive frames with improved display logic.
         Args:
             audio_durations: List of audio durations for each message
             fps: Frames per second for video output
             start_buffer: Buffer duration at start (seconds)
             end_buffer: Buffer duration at end (seconds)
+            pause_between_messages: Pause duration between messages (seconds)
         Returns:
             List of frame file paths
         """
@@ -133,7 +135,7 @@ class ProgressiveMessageOverlay:
             logger.error(error_msg)
             raise ValueError(error_msg)
         logger.info(f"Creating progressive frames for {len(self.message_coordinates)} messages at {fps} FPS")
-        logger.info(f"Buffers: start={start_buffer}s, end={end_buffer}s")
+        logger.info(f"Buffers: start={start_buffer}s, end={end_buffer}s, pause={pause_between_messages}s")
         logger.debug(f"Audio durations: {audio_durations}")
         frame_paths = []
         current_frame = 0
@@ -156,9 +158,18 @@ class ProgressiveMessageOverlay:
                 frames_for_message = int(duration * fps)
                 logger.info(f"Message {msg_idx + 1}: {frames_for_message} frames ({duration:.2f}s)")
                 for frame_idx in range(frames_for_message):
+                    # Show exactly i+1 messages (not i+2)
                     frame_path = self._create_group_frame(group_messages, i + 1, current_frame)
                     frame_paths.append(frame_path)
                     current_frame += 1
+                # Add pause between messages (except after the last message in a group)
+                if i < len(group_messages) - 1:
+                    pause_frames = int(pause_between_messages * fps)
+                    logger.debug(f"Adding {pause_frames} pause frames after message {msg_idx + 1}")
+                    for pause_frame in range(pause_frames):
+                        frame_path = self._create_group_frame(group_messages, i + 1, current_frame)
+                        frame_paths.append(frame_path)
+                        current_frame += 1
         # Add end buffer frames
         end_frames = int(end_buffer * fps)
         logger.info(f"Adding {end_frames} end buffer frames")
