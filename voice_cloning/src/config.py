@@ -20,7 +20,7 @@ AUDIO_CONFIG = {
 # Configurações de TTS
 TTS_CONFIG = {
     'model_name': "tts_models/multilingual/multi-dataset/xtts_v2",
-    'language': "pt-br",
+    'language': "pt",
     'rate': 150,  # para pyttsx3
     'timeout': 60,  # segundos
     'auto_accept_license': True,  # Auto-accept license prompts
