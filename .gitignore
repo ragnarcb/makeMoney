@@ -19,3 +19,4 @@ video_generator/temp_audio
 */__pycache__/*
 video_generator/temp_frames/*
 whatsapp-clone/temp_chat_imgs/*
+voice_cloning/models/*

@@ -3,7 +3,7 @@ import json
 from loguru import logger
 from whatsapp_gen.chat_generator import generate_chat
 from whatsapp_gen.node_service_client import NodeServiceClient
-from tts.tts_generator import generate_tts
+from tts.voice_cloning_client import VoiceCloningServiceClient
 from video_overlay.progressive_overlay import ProgressiveMessageOverlay
 from video_overlay.overlay_builder import build_video
 from utils.file_utils import cleanup_temp_dirs
@@ -37,9 +37,12 @@ def main():
     parser.add_argument("--participants", nargs=2, default=PARTICIPANTS, help="Participant names")
     parser.add_argument("--use-s3", action="store_true", help="Use S3 storage for files")
     parser.add_argument("--node-url", type=str, default="http://localhost:3010", help="Node.js service URL")
+    parser.add_argument("--voice-cloning-dir", type=str, default="../voice_cloning", help="Voice Cloning directory path")
     parser.add_argument("--messages-per-group", type=int, default=4, help="Number of messages to show at once")
     parser.add_argument("--start-buffer", type=float, default=1.0, help="Buffer (seconds) at start of video")
     parser.add_argument("--end-buffer", type=float, default=3.0, help="Buffer (seconds) at end of video")
+    parser.add_argument("--voice-mapping", nargs='*', help="Map participants to voice files: participant:voice.wav")
+    parser.add_argument("--no-voice-cloning", action="store_true", help="Disable voice cloning")
     args = parser.parse_args()
 
     logger.info(f"Configuration: participants={args.participants}, lang={LANG}, fps={FPS}, img_size={IMG_SIZE}")
@@ -56,10 +59,44 @@ def main():
     logger.success(f"Generated {len(messages)} messages.")
     logger.debug(f"First few messages: {messages[:3] if len(messages) >= 3 else messages}")
 
-    logger.info("Generating TTS audio for each message...")
-    audio_paths = generate_tts(messages, TEMP_AUDIO_DIR, lang=LANG)
-    logger.success(f"Generated TTS for {len(audio_paths)} messages.")
-    logger.debug(f"Audio paths: {audio_paths}")
+    # Initialize Voice Cloning TTS direct client
+    logger.info(f"Initializing Voice Cloning TTS direct client with directory: {args.voice_cloning_dir}")
+    tts_client = VoiceCloningServiceClient(voice_cloning_dir=args.voice_cloning_dir)
+
+    # Check Voice Cloning TTS system health
+    logger.info("Checking Voice Cloning TTS system health...")
+    if not tts_client.health_check():
+        error_msg = "Voice Cloning TTS system is not healthy. Check voice files and configuration."
+        logger.error(error_msg)
+        sys.exit(1)
+
+    # Process voice mapping
+    voice_mapping = {}
+    if args.voice_mapping:
+        for mapping in args.voice_mapping:
+            if ':' in mapping:
+                participant, voice_file = mapping.split(':', 1)
+                voice_mapping[participant.strip()] = voice_file.strip()
+            else:
+                logger.warning(f"Invalid voice mapping format: {mapping}")
+                logger.info("Use format: participant:voice.wav")
+
+    logger.info("Generating TTS audio for each message using Voice Cloning TTS...")
+    try:
+        audio_paths = tts_client.generate_tts(
+            messages=messages,
+            participants=args.participants,
+            output_dir=TEMP_AUDIO_DIR,
+            voice_mapping=voice_mapping,
+            use_voice_cloning=not args.no_voice_cloning,
+            lang=LANG
+        )
+        logger.success(f"Generated TTS for {len(audio_paths)} messages using Voice Cloning TTS.")
+        logger.debug(f"Audio paths: {audio_paths}")
+    except Exception as e:
+        error_msg = f"Failed to generate TTS audio: {e}"
+        logger.error(error_msg)
+        sys.exit(1)
 
     # Initialize Node.js service client
     s3_config = {} # Add your S3 config here if needed
