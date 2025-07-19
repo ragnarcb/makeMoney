@@ -24,6 +24,7 @@ sys.path.insert(0, str(current_dir))
 from character_voice_generator import CharacterVoiceGenerator
 from config import PATHS, find_file_in_project, get_available_voice_files
 from database_integration import VoiceProcessingWorker, VoiceCloningDatabase
+from storage_client import LocalStorageClient
 
 # Configure logging
 log_file = os.getenv('LOG_FILE', '/var/log/voice-cloning-service.log')
@@ -195,10 +196,11 @@ class VoiceCloningQueueConsumer:
     
     def __init__(self):
         """Initialize the queue consumer"""
-        self.queue_name = os.getenv('CONSUMER_QUEUE_NAME', 'False')
+        # Jobber will inject the temporary queue name via CONSUMER_QUEUE_NAME
+        self.queue_name = os.getenv('CONSUMER_QUEUE_NAME', 'voice-cloning-queue')
 
-        if self.queue_name == 'False' and os.getenv('USE_MOCK_MODE', 'false').lower() == 'true':
-            self.queue_name = 'voice-cloning-queue'
+        if os.getenv('USE_MOCK_MODE', 'false').lower() == 'true':
+            self.queue_name = 'voice-cloning-queue'  # Use mock queue for testing
         
 
         self.tts_generator = None
@@ -288,7 +290,11 @@ class VoiceCloningQueueConsumer:
             start_time = time.time()
             logger.info(f"Processing TTS request: {message.get('id', 'unknown')}")
             
-            # Extract request data
+            # Check if this is a voice cloning request (from jobber)
+            if 'video_id' in message and 'messages' in message:
+                return self._process_jobber_message(message)
+            
+            # Extract request data for legacy format
             request_type = message.get('type', 'batch')
             
             logger.info(f"Request type: {request_type}")
@@ -300,6 +306,91 @@ class VoiceCloningQueueConsumer:
                 
         except Exception as e:
             logger.error(f"Error processing TTS request: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+    
+    def _process_jobber_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Process a message from the temporary queue created by jobber
+        
+        Expected format (this is what jobber sends to the temporary queue):
+        {
+            "video_id": "uuid",
+            "messages": [...],
+            "voice_mapping": {...}
+        }
+        """
+        try:
+            logger.info("Processing voice cloning request from jobber")
+            
+            # Extract data from message (jobber already extracted the 'data' part)
+            video_id = message.get('video_id')
+            messages = message.get('messages', [])
+            voice_mapping = message.get('voice_mapping', {})
+            
+            if not video_id:
+                raise ValueError("Missing video_id in message")
+            
+            logger.info(f"Processing voice requests for video: {video_id}")
+            logger.info(f"Number of messages to process: {len(messages)}")
+            
+            # Initialize database and storage
+            db = VoiceCloningDatabase()
+            storage_client = None
+            
+            # Check if we should use remote storage
+            use_local_storage = os.getenv("USE_LOCAL_STORAGE", "true").lower() == "true"
+            if not use_local_storage:
+                storage_client = LocalStorageClient()
+                logger.info("Using remote storage for voice files")
+            
+            # Process each message and create voice requests in database
+            voice_ids = []
+            for i, msg in enumerate(messages):
+                try:
+                    # Create voice request in database
+                    voice_id = db.create_voice_request(
+                        video_id=video_id,
+                        character_name=msg.get('from_user', f'character_{i}'),
+                        text_content=msg.get('text', ''),
+                        voice_mapping_id=None  # Will be resolved during processing
+                    )
+                    voice_ids.append(voice_id)
+                    logger.info(f"Created voice request {voice_id} for message {i}")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to create voice request for message {i}: {e}")
+            
+            if not voice_ids:
+                raise Exception("No voice requests were created")
+            
+            # Process the voice requests
+            worker = VoiceProcessingWorker()
+            worker.process_pending_voices()
+            
+            # Check if all voices are completed
+            if db.check_all_voices_completed(video_id):
+                logger.info(f"All voice processing completed for video {video_id}")
+                return {
+                    'success': True,
+                    'video_id': video_id,
+                    'message': 'Voice processing completed successfully',
+                    'timestamp': datetime.now().isoformat()
+                }
+            else:
+                logger.warning(f"Some voice processing failed for video {video_id}")
+                return {
+                    'success': False,
+                    'video_id': video_id,
+                    'error': 'Some voice processing failed',
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+        except Exception as e:
+            logger.error(f"Error processing voice cloning request: {e}")
             return {
                 'success': False,
                 'error': str(e),

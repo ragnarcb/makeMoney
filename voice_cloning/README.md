@@ -13,6 +13,160 @@ A Kubernetes-ready microservice for voice cloning using Coqui TTS with XTTS v2 m
 - **Batch Processing**: Generate TTS for multiple messages at once
 - **Automatic License Handling**: No manual intervention required for model licensing
 - **Dynamic Voice Mapping**: Voice files can be specified per request via RabbitMQ messages
+- **Jobber Integration**: Works with jobber service for dynamic pod instantiation
+- **Database Integration**: PostgreSQL integration for tracking voice processing status
+- **Storage Flexibility**: Support for both local and remote voice file storage
+
+## 🔄 Workflow Integration
+
+This service integrates with a jobber-based workflow for dynamic voice processing. Here's how it works:
+
+### **Jobber Workflow Diagram**
+
+```mermaid
+sequenceDiagram
+    participant VG as Video Generator
+    participant JQ as Jobber Queue
+    participant JB as Jobber Service
+    participant VC as Voice Cloning Pod
+    participant DB as PostgreSQL DB
+    participant ST as Storage Service
+
+    VG->>JQ: Send voice cloning request
+    Note over VG,JQ: {app: "text-processor", data: {video_id, messages, voice_mapping}}
+    
+    JQ->>JB: Consume request
+    JB->>JB: Create temporary queue
+    JB->>VC: Instantiate pod with CONSUMER_QUEUE_NAME=<temp_queue>
+    
+    JB->>VC: Send simplified message
+    Note over JB,VC: {video_id, messages, voice_mapping}
+    
+    VC->>DB: Create voice requests
+    VC->>VC: Process voice cloning
+    VC->>ST: Store audio files (local/remote)
+    VC->>DB: Update processing status
+    
+    VC->>VC: Exit when complete
+    
+    VG->>DB: Poll for completion status
+    DB->>VG: Return voice processing results
+```
+
+### **System Architecture**
+
+```mermaid
+graph TB
+    subgraph "Video Generation Pipeline"
+        VG[Video Generator]
+        WG[WhatsApp Clone Service]
+    end
+    
+    subgraph "Jobber Orchestration"
+        JQ[Jobber Queue]
+        JB[Jobber Service]
+        TQ[Temp Queue]
+    end
+    
+    subgraph "Voice Processing"
+        VC[Voice Cloning Pod]
+        TTS[Coqui TTS Engine]
+        DB[(PostgreSQL DB)]
+    end
+    
+    subgraph "Storage"
+        LS[Local Storage]
+        RS[Remote Storage Service]
+    end
+    
+    VG --> JQ
+    JQ --> JB
+    JB --> TQ
+    TQ --> VC
+    VC --> TTS
+    VC --> DB
+    VC --> LS
+    VC --> RS
+    
+    VG -.->|Poll Status| DB
+    WG -.->|Generate Images| VG
+```
+
+### **Message Flow**
+
+```mermaid
+flowchart LR
+    subgraph "1. Video Generator"
+        A[Create video entry in DB]
+        B[Generate WhatsApp images]
+        C[Send to jobber queue]
+    end
+    
+    subgraph "2. Jobber Service"
+        D[Receive request]
+        E[Create temp queue]
+        F[Instantiate voice pod]
+    end
+    
+    subgraph "3. Voice Cloning"
+        G[Listen to temp queue]
+        H[Create voice requests in DB]
+        I[Process voice cloning]
+        J[Update DB status]
+        K[Exit pod]
+    end
+    
+    subgraph "4. Video Generator"
+        L[Poll DB for completion]
+        M[Continue video generation]
+    end
+    
+    A --> B --> C --> D --> E --> F --> G --> H --> I --> J --> K --> L --> M
+```
+
+### **Database Schema Integration**
+
+```mermaid
+erDiagram
+    VIDEOS {
+        uuid id PK
+        string title
+        string status
+        jsonb metadata
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    VOICES {
+        uuid id PK
+        uuid video_id FK
+        string character_name
+        text text_content
+        string status
+        string local_file_path
+        string remote_storage_path
+        boolean is_local_storage
+        timestamp created_at
+        timestamp updated_at
+    }
+    
+    VOICE_MAPPINGS {
+        uuid id PK
+        string character_name
+        string voice_file_path
+        jsonb metadata
+        timestamp created_at
+    }
+    
+    SETTINGS {
+        string key PK
+        text value
+        timestamp updated_at
+    }
+    
+    VIDEOS ||--o{ VOICES : "has many"
+    VOICES }o--|| VOICE_MAPPINGS : "maps to"
+```
 
 ## 📋 Prerequisites
 

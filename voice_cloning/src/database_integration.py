@@ -71,6 +71,24 @@ class VoiceCloningDatabase:
         """
         return self.execute_query(query)
     
+    def create_voice_request(self, video_id: str, character_name: str, text_content: str, voice_mapping_id: str = None) -> str:
+        """Create a new voice request and return the voice ID"""
+        voice_id = str(uuid.uuid4())
+        
+        query = """
+            INSERT INTO voices (id, video_id, voice_mapping_id, character_name, text_content, status)
+            VALUES (%s, %s, %s, %s, %s, 'pending')
+            RETURNING id
+        """
+        
+        self.execute_query(
+            query,
+            (voice_id, video_id, voice_mapping_id, character_name, text_content),
+            fetch=False
+        )
+        
+        return voice_id
+    
     def start_processing_voice(self, voice_id: str) -> bool:
         """Mark a voice request as processing"""
         query = """
