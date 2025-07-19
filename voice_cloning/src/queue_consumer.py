@@ -23,6 +23,7 @@ sys.path.insert(0, str(current_dir))
 
 from character_voice_generator import CharacterVoiceGenerator
 from config import PATHS, find_file_in_project, get_available_voice_files
+from database_integration import VoiceProcessingWorker, VoiceCloningDatabase
 
 # Configure logging
 log_file = os.getenv('LOG_FILE', '/var/log/voice-cloning-service.log')
@@ -194,7 +195,12 @@ class VoiceCloningQueueConsumer:
     
     def __init__(self):
         """Initialize the queue consumer"""
-        self.queue_name = os.getenv('CONSUMER_QUEUE_NAME', 'voice-cloning-queue')
+        self.queue_name = os.getenv('CONSUMER_QUEUE_NAME', 'False')
+
+        if self.queue_name == 'False' and os.getenv('USE_MOCK_MODE', 'false').lower() == 'true':
+            self.queue_name = 'voice-cloning-queue'
+        
+
         self.tts_generator = None
         self.running = False
         self.message_consumer = None
@@ -491,11 +497,42 @@ class VoiceCloningQueueConsumer:
         finally:
             self.running = False
             logger.info("Queue consumer stopped")
+    
+    def start_database_mode(self):
+        """Start the queue consumer in database mode - continuously process voice requests from database"""
+        logger.info("Starting Voice Cloning Queue Consumer (Database Mode)...")
+        self.running = True
+        
+        try:
+            # Initialize database worker
+            worker = VoiceProcessingWorker()
+            
+            # Run continuous processing
+            worker.run_continuous_processing(interval_seconds=30)
+            
+        except KeyboardInterrupt:
+            logger.info("Received keyboard interrupt, shutting down...")
+        except Exception as e:
+            logger.error(f"Error in database mode: {e}")
+        finally:
+            self.running = False
+            logger.info("Database mode stopped")
 
 def main():
     """Main entry point"""
+    import sys
+    
+    # Check if database mode is requested
+    use_database_mode = os.getenv('USE_DATABASE_MODE', 'false').lower() == 'true'
+    
     consumer = VoiceCloningQueueConsumer()
-    consumer.start()
+    
+    if use_database_mode:
+        logger.info("Starting in DATABASE MODE - processing voice requests from PostgreSQL")
+        consumer.start_database_mode()
+    else:
+        logger.info("Starting in QUEUE MODE - processing messages from RabbitMQ")
+        consumer.start()
 
 if __name__ == "__main__":
     main() 

@@ -25,6 +25,12 @@ regex>=2021.8.0     # Advanced regex for text cleaning
 # System Utilities
 psutil>=5.8.0       # System monitoring
 
+# Database Integration
+psycopg2-binary>=2.9.9  # PostgreSQL adapter
+
+# HTTP Client for Storage Service
+requests>=2.31.0  # HTTP client for local storage service
+
 # Note: coqpit-config is automatically installed with coqui-tts
 # Note: pyaudio and pygame are optional and may cause build issues
 # Note: realtimetts removed as we only use Coqui TTS 

@@ -14,11 +14,21 @@ ENV USE_MOCK_MODE=false
 ENV OUTPUT_DIR=/tmp/voice_cloning_output
 ENV COQUI_TOS_AGREED=1
 
-# Install system dependencies for audio processing
+# Database configuration
+ENV POSTGRES_HOST=192.168.1.218
+ENV POSTGRES_PORT=30432
+ENV POSTGRES_USER=postgres
+ENV POSTGRES_PASSWORD=postgres123
+ENV DATABASE_NAME=video_voice_integration
+
+# Install system dependencies for audio processing (cached layer)
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsndfile1 \
     libportaudio2 \
+    gcc \
+    g++ \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -27,13 +37,22 @@ WORKDIR /app
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (this layer will be cached unless requirements.txt changes)
+# Upgrade pip first for better compatibility
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt  
 
-# Copy source code
+# Copy source code (these layers will be cached unless source changes)
 COPY src/ ./src/
 COPY voices/ ./voices/
-COPY config/ ./config/
+
+# Database mode configuration
+ENV USE_DATABASE_MODE=true
+
+# Storage configuration
+ENV USE_LOCAL_STORAGE=true
+ENV LOCAL_STORAGE_URL=http://192.168.1.218:30880
+ENV VOICE_STORAGE_BUCKET=voice-cloning
 
 # Create necessary directories
 RUN mkdir -p /tmp/voice_cloning_output /var/log /app/models
@@ -47,7 +66,7 @@ USER app
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)"
+    CMD python -c "import sys; sys.path.append('/app/src'); from database_integration import test_database_connection; sys.exit(0 if test_database_connection() else 1)"
 
 # Expose port (if needed for health checks)
 EXPOSE 8080
