@@ -6,3 +6,5 @@ moviepy
 gTTS
 loguru
 requests
+pika
+psycopg2-binary

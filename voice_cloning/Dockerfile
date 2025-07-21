@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y \
     libportaudio2 \
     gcc \
     g++ \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -37,10 +38,44 @@ WORKDIR /app
 # Copy requirements first for better caching
 COPY requirements.txt .
 
-# Install Python dependencies (this layer will be cached unless requirements.txt changes)
-# Upgrade pip first for better compatibility
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt  
+# Install Python dependencies in stages to handle large packages better
+RUN pip install --upgrade pip setuptools wheel
+
+# Configure pip for better network handling
+RUN pip config set global.timeout 600 && \
+    pip config set global.retries 10
+
+# Install core dependencies first (smaller packages)
+RUN pip install --no-cache-dir \
+    "numpy>=1.26.0,<2.0.0" \
+    "requests>=2.31.0,<3.0.0" \
+    "tqdm>=4.64.0,<5.0.0" \
+    "regex>=2021.8.0,<2024.0.0" \
+    "psutil>=5.8.0,<6.0.0" \
+    "psycopg2-binary>=2.9.9,<3.0.0"
+
+# Install audio processing packages
+RUN pip install --no-cache-dir \
+    "soundfile>=0.12.0,<1.0.0" \
+    "pydub>=0.25.1,<1.0.0"
+
+# Install queue consumer
+RUN pip install --no-cache-dir "pika>=1.3.0,<2.0.0"
+
+# Install large ML packages separately with retry logic
+RUN pip install --no-cache-dir "torch>=2.1.0,<3.0.0" "torchaudio>=2.1.0,<3.0.0" || \
+    (echo "PyTorch install failed, retrying..." && \
+     pip install --no-cache-dir --timeout 900 --retries 15 "torch>=2.1.0,<3.0.0" "torchaudio>=2.1.0,<3.0.0")
+
+# Install librosa (large package)
+RUN pip install --no-cache-dir "librosa>=0.11.0,<1.0.0" || \
+    (echo "Librosa install failed, retrying..." && \
+     pip install --no-cache-dir --timeout 900 --retries 15 "librosa>=0.11.0,<1.0.0")
+
+# Install coqui-tts last (largest package)
+RUN pip install --no-cache-dir "coqui-tts>=0.27.0,<1.0.0" || \
+    (echo "Coqui-TTS install failed, retrying with different approach..." && \
+     pip install --no-cache-dir --timeout 1200 --retries 20 --trusted-host pypi.org --trusted-host files.pythonhosted.org "coqui-tts>=0.27.0,<1.0.0")
 
 # Copy source code (these layers will be cached unless source changes)
 COPY src/ ./src/

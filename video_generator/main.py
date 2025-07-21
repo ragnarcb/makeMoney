@@ -1,9 +1,10 @@
 import os
 import json
+import uuid
 from loguru import logger
 from whatsapp_gen.chat_generator import generate_chat
 from whatsapp_gen.node_service_client import NodeServiceClient
-from tts.voice_cloning_client import VoiceCloningServiceClient
+from voice_cloning_client import VoiceCloningServiceClient
 from video_overlay.progressive_overlay import ProgressiveMessageOverlay
 from video_overlay.overlay_builder import build_video
 from utils.file_utils import cleanup_temp_dirs
@@ -32,6 +33,10 @@ IMG_SIZE = (1920, 1080)  # height, width (portrait)
 def main():
     logger.info("Starting WhatsApp video generation pipeline")
     
+    # Generate unique video ID
+    video_id = str(uuid.uuid4())
+    logger.info(f"Generated video ID: {video_id}")
+    
     parser = argparse.ArgumentParser(description="Generate WhatsApp video with custom prompt")
     parser.add_argument("--prompt", type=str, help="Custom prompt for the conversation", default=None)
     parser.add_argument("--participants", nargs=2, default=PARTICIPANTS, help="Participant names")
@@ -43,6 +48,7 @@ def main():
     parser.add_argument("--end-buffer", type=float, default=3.0, help="Buffer (seconds) at end of video")
     parser.add_argument("--voice-mapping", nargs='*', help="Map participants to voice files: participant:voice.wav")
     parser.add_argument("--no-voice-cloning", action="store_true", help="Disable voice cloning")
+    parser.add_argument("--video-id", type=str, default=video_id, help="Video ID for tracking")
     args = parser.parse_args()
 
     logger.info(f"Configuration: participants={args.participants}, lang={LANG}, fps={FPS}, img_size={IMG_SIZE}")
@@ -59,9 +65,9 @@ def main():
     logger.success(f"Generated {len(messages)} messages.")
     logger.debug(f"First few messages: {messages[:3] if len(messages) >= 3 else messages}")
 
-    # Initialize Voice Cloning TTS direct client
-    logger.info(f"Initializing Voice Cloning TTS direct client with directory: {args.voice_cloning_dir}")
-    tts_client = VoiceCloningServiceClient(voice_cloning_dir=args.voice_cloning_dir)
+    # Initialize Voice Cloning TTS microservice client
+    logger.info(f"Initializing Voice Cloning TTS microservice client for video {args.video_id}")
+    tts_client = VoiceCloningServiceClient(video_id=args.video_id)
 
     # Check Voice Cloning TTS system health
     logger.info("Checking Voice Cloning TTS system health...")
@@ -200,4 +206,11 @@ def main():
     # cleanup_temp_dirs(TEMP_IMG_DIR, TEMP_AUDIO_DIR, TEMP_FRAMES_DIR)
 
 if __name__ == "__main__":
+    # Check if we should run in queue mode
+    if os.getenv('CONSUMER_QUEUE_NAME'):
+        # Import and run queue consumer
+        from queue_consumer import main as queue_main
+        queue_main()
+    else:
+        # Run in direct mode (original behavior)
     main() 
