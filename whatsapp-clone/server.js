@@ -1,10 +1,10 @@
 const express = require('express');
-const puppeteer = require('puppeteer');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fs = require('fs-extra');
 require('dotenv').config();
+const { chromium } = require('playwright');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -15,9 +15,13 @@ const config = {
     uploadService: process.env.UPLOAD_SERVICE || 's3',
     maxConcurrentRequests: parseInt(process.env.MAX_CONCURRENT_REQUESTS) || 5,
     browserTimeout: parseInt(process.env.BROWSER_TIMEOUT) || 30000,
-    defaultImageSize: process.env.DEFAULT_IMAGE_SIZE ? 
+    defaultImageSize: process.env.DEFAULT_IMAGE_SIZE ?
         process.env.DEFAULT_IMAGE_SIZE.split(',').map(Number) : [1920, 1080],
-    outputDir: process.env.OUTPUT_DIR || './output'
+    outputDir: process.env.OUTPUT_DIR || './output',
+    // If true, use local S3-like HTTP API for storage
+    useLocalS3: process.env.LOCAL_S3_EMULATOR === 'true',
+    localS3BaseUrl: process.env.LOCAL_S3_BASE_URL || 'http://192.168.1.218:30880',
+    localS3Bucket: process.env.LOCAL_S3_BUCKET || 'test',
 };
 
 // Queue for managing concurrent requests
@@ -76,8 +80,7 @@ class BrowserPool {
         if (this.browsers.length > 0) {
             return this.browsers.pop();
         }
-        
-        return await puppeteer.launch({
+        return await chromium.launch({
             headless: true,
             args: [
                 '--no-sandbox',
@@ -112,13 +115,42 @@ const browserPool = new BrowserPool();
 // Upload service (placeholder - implement your own)
 const uploadService = {
     async uploadToS3(filePath, options = {}) {
-        // Placeholder for S3 upload
-        // You would implement AWS SDK here
-        console.log(`[UPLOAD] Would upload ${filePath} to S3`);
-        return {
-            url: `https://your-bucket.s3.amazonaws.com/${path.basename(filePath)}`,
-            success: true
-        };
+        if (config.useLocalS3) {
+            // Use local S3-like HTTP API
+            const axios = require('axios');
+            const FormData = require('form-data');
+            const fs = require('fs');
+            const path = require('path');
+            const fileName = path.basename(filePath);
+            const form = new FormData();
+            form.append('file', fs.createReadStream(filePath), fileName);
+            try {
+                const url = `${config.localS3BaseUrl}/buckets/${config.localS3Bucket}/files`;
+                const response = await axios.post(url, form, {
+                    headers: form.getHeaders(),
+                    maxContentLength: Infinity,
+                    maxBodyLength: Infinity
+                });
+                if (response.status === 200 || response.status === 201) {
+                    return {
+                        url: `${config.localS3BaseUrl}/buckets/${config.localS3Bucket}/files/${fileName}`,
+                        success: true
+                    };
+                } else {
+                    throw new Error(`Local S3 upload failed: ${response.status} ${response.statusText}`);
+                }
+            } catch (err) {
+                console.error('[UPLOAD] Local S3 upload error:', err);
+                throw err;
+            }
+        } else {
+            // Placeholder for real S3 upload
+            console.log(`[UPLOAD] Would upload ${filePath} to S3`);
+            return {
+                url: `https://your-bucket.s3.amazonaws.com/${path.basename(filePath)}`,
+                success: true
+            };
+        }
     },
 
     async uploadToImgur(filePath, options = {}) {
@@ -170,40 +202,30 @@ function convertMessages(pythonMessages, participants) {
 // Generate screenshot function
 async function generateScreenshot(messages, participants, outputDir, imgSize = config.defaultImageSize) {
     const browser = await browserPool.getBrowser();
-    
+    let page;
     try {
-        const page = await browser.newPage();
-        await page.setViewport({
+        page = await browser.newPage();
+        await page.setViewportSize({
             width: imgSize[1],
-            height: imgSize[0],
-            deviceScaleFactor: 1
+            height: imgSize[0]
         });
-        
-        await page.goto(`http://localhost:${PORT}`, { 
-            waitUntil: 'networkidle2',
-            timeout: config.browserTimeout 
+        await page.goto(`http://localhost:${PORT}`, {
+            waitUntil: 'networkidle',
+            timeout: config.browserTimeout
         });
-        
         await page.waitForSelector('.whatsapp-container', { timeout: 10000 });
-
         // Convert and inject messages
         const convertedMessages = convertMessages(messages, participants);
-        await page.evaluate((msgs, participants) => {
+        await page.evaluate(({msgs, participants}) => {
             window.currentMessages = msgs;
             window.currentParticipants = participants;
             window.dispatchEvent(new CustomEvent('updateMessages', {
                 detail: { messages: msgs, participants }
             }));
-        }, convertedMessages, participants);
-
-        // Wait for React app to update
+        }, {msgs: convertedMessages, participants});
         await page.waitForTimeout(2000);
-
-        // Get chat container bounds
         const chatBox = await page.$('.whatsapp-container');
         const boundingBox = await chatBox.boundingBox();
-
-        // Extract message coordinates before taking screenshot
         const messageCoordinates = await page.evaluate(() => {
             const container = document.querySelector('.whatsapp-container');
             const containerRect = container.getBoundingClientRect();
@@ -215,7 +237,7 @@ async function generateScreenshot(messages, participants, outputDir, imgSize = c
                 const senderName = bubble.querySelector('.sender-name');
                 coordinates.push({
                     index: index,
-                    y: Math.round(rect.top - containerRect.top), // Y relative to chat container
+                    y: Math.round(rect.top - containerRect.top),
                     height: Math.round(rect.height),
                     width: Math.round(rect.width),
                     from: senderName ? senderName.textContent.trim() : 'Unknown',
@@ -225,14 +247,9 @@ async function generateScreenshot(messages, participants, outputDir, imgSize = c
             });
             return coordinates;
         });
-
-        // Ensure output directory exists
         await fs.ensureDir(outputDir);
-
-        // Take screenshot
         const filename = `whatsapp_${Date.now()}.png`;
         const screenshotPath = path.resolve(path.join(outputDir, filename));
-        
         await page.screenshot({
             path: screenshotPath,
             fullPage: false,
@@ -243,15 +260,11 @@ async function generateScreenshot(messages, participants, outputDir, imgSize = c
                 height: Math.round(boundingBox.height)
             }
         });
-
         console.log(`[SCREENSHOT] Saved: ${screenshotPath}`);
         console.log(`[COORDINATES] Found ${messageCoordinates.length} message coordinates`);
-
-        // Handle upload mode
         if (config.uploadMode) {
             try {
                 const uploadResult = await uploadService.upload(screenshotPath);
-                // Clean up local file after upload
                 await fs.remove(screenshotPath);
                 return {
                     type: 'upload',
@@ -261,7 +274,6 @@ async function generateScreenshot(messages, participants, outputDir, imgSize = c
                 };
             } catch (uploadError) {
                 console.error('[UPLOAD] Error:', uploadError);
-                // Fall back to local file if upload fails
                 return {
                     type: 'local',
                     path: screenshotPath,
@@ -277,8 +289,8 @@ async function generateScreenshot(messages, participants, outputDir, imgSize = c
                 messageCoordinates: messageCoordinates
             };
         }
-
     } finally {
+        if (page) await page.close();
         await browserPool.releaseBrowser(browser);
     }
 }
@@ -303,7 +315,7 @@ async function generateScreenshot(messages, participants, outputDir, imgSize = c
 app.post('/api/generate-screenshots', async (req, res) => {
     try {
         const { messages, participants, outputDir, img_size } = req.body;
-        
+
         // Validation
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             return res.status(400).json({
@@ -322,13 +334,13 @@ app.post('/api/generate-screenshots', async (req, res) => {
         }
 
         console.log(`[REQUEST] Single screenshot: ${messages.length} messages, participants: ${participants.join(', ')}`);
-        
+
         // Add to queue
         const result = await requestQueue.add(async () => {
             return await generateScreenshot(
-                messages, 
-                participants, 
-                outputDir || config.outputDir, 
+                messages,
+                participants,
+                outputDir || config.outputDir,
                 img_size
             );
         });
@@ -349,7 +361,7 @@ app.post('/api/generate-screenshots', async (req, res) => {
                 message: 'Generated 1 screenshot successfully'
             });
         }
-        
+
     } catch (error) {
         console.error('[ERROR] Single screenshot generation:', error);
         res.status(500).json({
@@ -377,7 +389,10 @@ app.get('/api/health', (req, res) => {
         config: {
             uploadMode: config.uploadMode,
             uploadService: config.uploadService,
-            maxConcurrentRequests: config.maxConcurrentRequests
+            maxConcurrentRequests: config.maxConcurrentRequests,
+            useLocalS3: config.useLocalS3,
+            localS3BaseUrl: config.localS3BaseUrl,
+            localS3Bucket: config.localS3Bucket
         },
         queue: requestQueue.getStatus()
     });
@@ -415,6 +430,9 @@ app.listen(PORT, () => {
     console.log(`[CONFIG] Upload mode: ${config.uploadMode ? 'ON' : 'OFF'}`);
     console.log(`[CONFIG] Upload service: ${config.uploadService}`);
     console.log(`[CONFIG] Max concurrent requests: ${config.maxConcurrentRequests}`);
+    console.log(`[CONFIG] Use Local S3 Emulator: ${config.useLocalS3 ? 'ON' : 'OFF'}`);
+    console.log(`[CONFIG] Local S3 Base URL: ${config.localS3BaseUrl}`);
+    console.log(`[CONFIG] Local S3 Bucket: ${config.localS3Bucket}`);
     console.log(`[API] Available endpoints:`);
     console.log(`  POST /api/generate-screenshots - Generate single screenshot`);
     console.log(`  GET  /api/messages - Get current messages`);
