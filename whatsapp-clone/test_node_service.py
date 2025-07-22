@@ -7,6 +7,9 @@ import requests
 import os
 import sys
 from PIL import Image, ImageDraw
+import time
+import random
+from datetime import datetime
 
 # Add the video_generator to path so we can import the chat generator
 sys.path.append('video_generator')
@@ -134,28 +137,94 @@ def test_single_screenshot(messages, participants, output_dir):
         return False
 
 
-def main():
-    # Generate test messages
+def generate_many_messages(n=100):
+    names = ["Ana", "Bruno"]
+    base_texts = [
+        "Mensagem aleatória número {}.",
+        "Como vai você? {}",
+        "Hoje o dia está bonito, né? {}",
+        "Você viu o jogo ontem? {}",
+        "Preciso de um café! {}",
+        "Vamos ao parque depois? {}",
+        "O que achou do filme? {}",
+        "Trabalhando muito ou pouco? {}",
+        "Me conta uma novidade! {}",
+        "Amanhã tem reunião, não esquece! {}"
+    ]
+    messages = []
+    for i in range(n):
+        sender = names[i % 2]
+        receiver = names[(i + 1) % 2]
+        text = random.choice(base_texts).format(i)
+        messages.append({"from": sender, "to": receiver, "text": text})
+    return messages
+
+
+def download_image(url, save_path):
+    try:
+        r = requests.get(url, timeout=30)
+        if r.status_code == 200:
+            with open(save_path, 'wb') as f:
+                f.write(r.content)
+            print(f"✅ Downloaded image: {save_path}")
+            return True
+        else:
+            print(f"❌ Failed to download image: {url} (HTTP {r.status_code})")
+            return False
+    except Exception as e:
+        print(f"❌ Exception downloading image: {e}")
+        return False
+
+
+def test_many_messages(n=100):
     participants = ["Ana", "Bruno"]
-    with open("test_messages.json", "r", encoding="utf-8") as f:
-        messages = json.load(f)
-    # messages =  #generate_chat(participants)
-    # print(f"✅ Generated {len(messages)} messages")
-    # with open("test_messages.json", "w", encoding="utf-8") as f:
-    #     json.dump(messages, f, ensure_ascii=False, indent=2)
-    # print("💾 Saved messages to test_messages.json")
-
-    output_dir = "test_output"
+    messages = generate_many_messages(n)
+    output_dir = f"test_output_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     os.makedirs(output_dir, exist_ok=True)
+    payload = {
+        "messages": messages,
+        "participants": participants,
+        "outputDir": output_dir,
+        "img_size": [1920, 1080]
+    }
+    print(f"\n📸 Testing with {n} messages...")
+    try:
+        response = requests.post(f"{API_URL}/api/generate-screenshots", json=payload, timeout=300)
+        if response.status_code == 200:
+            result = response.json()
+            print(f"🔍 Result: {json.dumps(result, indent=2)[:1000]} ...")
+            image_urls = result.get("imageUrls") or []
+            message_coordinates = result.get("messageCoordinates") or []
+            if image_urls:
+                for idx, url in enumerate(image_urls):
+                    save_path = os.path.join(output_dir, f"uploaded_{idx}.png")
+                    download_image(url, save_path)
+                    if message_coordinates:
+                        try:
+                            create_message_boundary_visualization(save_path, message_coordinates)
+                        except Exception as e:
+                            print(f"❌ Could not visualize boundaries: {e}")
+            print(f"✅ Message coordinates: {len(message_coordinates)} found.")
+            for i, coord in enumerate(message_coordinates[:10]):
+                print(f"   {i}: {coord}")
+            if len(message_coordinates) > 10:
+                print(f"   ... (total {len(message_coordinates)})")
+            return True
+        else:
+            print(f"❌ HTTP {response.status_code}: {response.text}")
+            return False
+    except Exception as e:
+        print(f"❌ Request failed: {e}")
+        return False
 
+
+def main():
     print_health_and_queue()
-
-    single_ok = test_single_screenshot(messages, participants, output_dir)
-
+    # Single test with many messages
+    ok = test_many_messages(12)
     print_health_and_queue()
-
-    if single_ok:
-        print("\n🎉 Node.js service test (single request) completed successfully!")
+    if ok:
+        print("\n🎉 Node.js service test (many messages) completed successfully!")
         sys.exit(0)
     else:
         print("\n💥 Node.js service test failed!")

@@ -205,9 +205,10 @@ async function generateScreenshot(messages, participants, outputDir, imgSize = c
     let page;
     try {
         page = await browser.newPage();
+        // Start with a large enough height to render all messages
         await page.setViewportSize({
             width: imgSize[1],
-            height: imgSize[0]
+            height: 3000 // Large initial height to ensure all messages render
         });
         await page.goto(`http://localhost:${PORT}`, {
             waitUntil: 'networkidle',
@@ -224,8 +225,14 @@ async function generateScreenshot(messages, participants, outputDir, imgSize = c
             }));
         }, {msgs: convertedMessages, participants});
         await page.waitForTimeout(2000);
+        // Get the bounding box of the chat container
         const chatBox = await page.$('.whatsapp-container');
         const boundingBox = await chatBox.boundingBox();
+        // Set viewport height to fit the chat container exactly
+        await page.setViewportSize({
+            width: imgSize[1],
+            height: Math.ceil(boundingBox.y + boundingBox.height)
+        });
         const messageCoordinates = await page.evaluate(() => {
             const container = document.querySelector('.whatsapp-container');
             const containerRect = container.getBoundingClientRect();
