@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Kubernetes Microservice for Voice Cloning TTS Queue Consumer
-Supports RabbitMQ and Mock mode for development
+Voice Cloning Queue Consumer - TTS 2.0
+Processa jobs de clonagem de voz da fila RabbitMQ
 """
 
+# Disable numba JIT and caching BEFORE any other imports
 import os
+os.environ['NUMBA_DISABLE_JIT'] = '1'
+os.environ['NUMBA_CACHE_DIR'] = '/tmp/numba_cache'
+os.environ['LIBROSA_CACHE_DIR'] = '/tmp/librosa_cache'
+os.environ['LIBROSA_CACHE_LEVEL'] = '0'
+
+import sys
 import json
 import time
 import signal
-import sys
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional

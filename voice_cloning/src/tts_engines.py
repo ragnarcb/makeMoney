@@ -5,7 +5,13 @@ Módulo com engines TTS abstraídas com melhorias para evitar cortes
 Apenas Coqui TTS - sem fallbacks ruins
 """
 
+# Disable numba JIT and caching BEFORE any other imports
 import os
+os.environ['NUMBA_DISABLE_JIT'] = '1'
+os.environ['NUMBA_CACHE_DIR'] = '/tmp/numba_cache'
+os.environ['LIBROSA_CACHE_DIR'] = '/tmp/librosa_cache'
+os.environ['LIBROSA_CACHE_LEVEL'] = '0'
+
 import sys
 import tempfile
 from abc import ABC, abstractmethod
