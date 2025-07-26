@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/home/silent/Documents/global_venv/312venv/bin/python
 """
 Test script to verify the Node.js WhatsApp image generation service (single request, local and upload modes)
 """
@@ -15,7 +15,7 @@ from datetime import datetime
 sys.path.append('video_generator')
 #from whatsapp_gen.chat_generator import generate_chat
 
-API_URL = "http://localhost:3001"
+API_URL = "http://192.168.1.218:30602"
 
 
 def print_health_and_queue():

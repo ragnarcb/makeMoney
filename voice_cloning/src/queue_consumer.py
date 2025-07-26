@@ -10,6 +10,7 @@ import json
 import time
 import signal
 import sys
+import subprocess
 from pathlib import Path
 from typing import Dict, Any, Optional
 import logging
@@ -20,6 +21,35 @@ import pika
 import sys
 current_dir = Path(__file__).parent.absolute()
 sys.path.insert(0, str(current_dir))
+
+# Install Coqui TTS if not available
+def ensure_coqui_tts_installed():
+    """Ensure Coqui TTS is installed at runtime"""
+    try:
+        import TTS
+        print(f"[OK] Coqui TTS already available: {TTS.__version__}")
+        return True
+    except ImportError:
+        print("[INFO] Coqui TTS not found, installing...")
+        try:
+            # Install Coqui TTS
+            subprocess.check_call([
+                sys.executable, "-m", "pip", "install", 
+                "--no-cache-dir", "coqui-tts==0.27.0"
+            ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            # Verify installation
+            import TTS
+            print(f"[OK] Coqui TTS installed successfully: {TTS.__version__}")
+            return True
+        except Exception as e:
+            print(f"[ERROR] Failed to install Coqui TTS: {e}")
+            return False
+
+# Ensure Coqui TTS is available before importing other modules
+if not ensure_coqui_tts_installed():
+    print("[ERROR] Cannot proceed without Coqui TTS")
+    sys.exit(1)
 
 from character_voice_generator import CharacterVoiceGenerator
 from config import PATHS, find_file_in_project, get_available_voice_files
