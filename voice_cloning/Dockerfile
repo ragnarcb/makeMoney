@@ -16,8 +16,8 @@ ENV COQUI_TOS_AGREED=1
 
 # Fix numba/librosa caching issues in Kubernetes
 ENV NUMBA_DISABLE_JIT=1
-ENV NUMBA_CACHE_DIR=/tmp/numba_cache
-ENV LIBROSA_CACHE_DIR=/tmp/librosa_cache
+ENV NUMBA_CACHE_DIR=/tmp
+ENV LIBROSA_CACHE_DIR=/tmp
 ENV LIBROSA_CACHE_LEVEL=0
 
 # Database configuration
