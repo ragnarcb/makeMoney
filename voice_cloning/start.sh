@@ -6,7 +6,7 @@ export NUMBA_CACHE_DIR=/tmp
 export LIBROSA_CACHE_DIR=/tmp
 export LIBROSA_CACHE_LEVEL=0
 
-# Create cache directories with proper permissions
+# Create cache directories with proper permissions (as root)
 mkdir -p /tmp/librosa_cache/joblib
 mkdir -p /tmp/numba_cache
 mkdir -p /tmp/voice_cloning_output
@@ -17,15 +17,9 @@ chmod -R 755 /tmp/numba_cache
 chmod -R 755 /tmp/voice_cloning_output
 
 # Ensure the app user owns these directories
-if [ -d "/tmp/librosa_cache" ]; then
-    chown -R app:app /tmp/librosa_cache
-fi
-if [ -d "/tmp/numba_cache" ]; then
-    chown -R app:app /tmp/numba_cache
-fi
-if [ -d "/tmp/voice_cloning_output" ]; then
-    chown -R app:app /tmp/voice_cloning_output
-fi
+chown -R app:app /tmp/librosa_cache
+chown -R app:app /tmp/numba_cache
+chown -R app:app /tmp/voice_cloning_output
 
-# Start the application
-exec python src/queue_consumer.py 
+# Switch to app user and start the application
+exec su - app -c "cd /app && python src/queue_consumer.py" 

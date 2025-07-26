@@ -106,7 +106,7 @@ RUN groupadd -g 1000 app && \
     chmod +x /app/start.sh
 
 # Switch to non-root user
-USER app
+USER root
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
