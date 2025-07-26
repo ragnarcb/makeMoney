@@ -8,11 +8,32 @@ Processa jobs de clonagem de voz da fila RabbitMQ
 # Disable numba JIT and caching BEFORE any other imports
 import os
 os.environ['NUMBA_DISABLE_JIT'] = '1'
-os.environ['NUMBA_CACHE_DIR'] = '/tmp/numba_cache'
-os.environ['LIBROSA_CACHE_DIR'] = '/tmp/librosa_cache'
+os.environ['NUMBA_CACHE_DIR'] = '/tmp'
+os.environ['LIBROSA_CACHE_DIR'] = '/tmp'
 os.environ['LIBROSA_CACHE_LEVEL'] = '0'
 
+# Aggressive monkey-patching to disable librosa caching
 import sys
+import types
+
+# Create a dummy cache manager that does nothing
+class DummyCacheManager:
+    def __init__(self, *args, **kwargs):
+        pass
+    def __getattr__(self, name):
+        return lambda *args, **kwargs: None
+
+# Monkey-patch librosa cache before any imports
+def disable_librosa_cache():
+    try:
+        import librosa._cache
+        librosa._cache.cache = DummyCacheManager()
+    except:
+        pass
+
+# Call the function immediately
+disable_librosa_cache()
+
 import json
 import time
 import signal

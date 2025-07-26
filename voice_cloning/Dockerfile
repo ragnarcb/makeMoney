@@ -86,6 +86,7 @@ RUN pip install --no-cache-dir "coqui-tts>=0.27.0,<1.0.0" || \
 # Copy source code (these layers will be cached unless source changes)
 COPY src/ ./src/
 COPY voices/ ./voices/
+COPY start.sh ./start.sh
 
 # Database mode configuration
 ENV USE_DATABASE_MODE=true
@@ -101,7 +102,8 @@ RUN mkdir -p /tmp/voice_cloning_output /var/log /app/models /tmp/librosa_cache /
 # Create non-root user with UID 1000 to match Kubernetes security context
 RUN groupadd -g 1000 app && \
     useradd --create-home --shell /bin/bash --uid 1000 --gid 1000 app && \
-    chown -R app:app /app /tmp/voice_cloning_output /var/log /tmp/librosa_cache /tmp/numba_cache
+    chown -R app:app /app /tmp/voice_cloning_output /var/log /tmp/librosa_cache /tmp/numba_cache && \
+    chmod +x /app/start.sh
 
 # Switch to non-root user
 USER app
@@ -113,5 +115,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Expose port (if needed for health checks)
 EXPOSE 8080
 
-# Run the queue consumer
-CMD ["python", "src/queue_consumer.py"] 
+# Run the startup script
+CMD ["/app/start.sh"] 
