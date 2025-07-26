@@ -99,7 +99,8 @@ ENV VOICE_STORAGE_BUCKET=voice-cloning
 RUN mkdir -p /tmp/voice_cloning_output /var/log /app/models /tmp/librosa_cache /tmp/numba_cache
 
 # Create non-root user with UID 1000 to match Kubernetes security context
-RUN useradd --create-home --shell /bin/bash --uid 1000 --gid 1000 app && \
+RUN groupadd -g 1000 app && \
+    useradd --create-home --shell /bin/bash --uid 1000 --gid 1000 app && \
     chown -R app:app /app /tmp/voice_cloning_output /var/log /tmp/librosa_cache /tmp/numba_cache
 
 # Switch to non-root user
