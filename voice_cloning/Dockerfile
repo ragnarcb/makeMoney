@@ -14,6 +14,12 @@ ENV USE_MOCK_MODE=false
 ENV OUTPUT_DIR=/tmp/voice_cloning_output
 ENV COQUI_TOS_AGREED=1
 
+# Fix numba/librosa caching issues in Kubernetes
+ENV NUMBA_DISABLE_JIT=1
+ENV NUMBA_CACHE_DIR=/tmp/numba_cache
+ENV LIBROSA_CACHE_DIR=/tmp/librosa_cache
+ENV LIBROSA_CACHE_LEVEL=0
+
 # Database configuration
 ENV POSTGRES_HOST=192.168.1.218
 ENV POSTGRES_PORT=30432
@@ -67,7 +73,7 @@ RUN pip install --no-cache-dir "torch>=2.1.0,<3.0.0" "torchaudio>=2.1.0,<3.0.0" 
     (echo "PyTorch install failed, retrying..." && \
      pip install --no-cache-dir --timeout 900 --retries 15 "torch>=2.1.0,<3.0.0" "torchaudio>=2.1.0,<3.0.0")
 
-# Install librosa (large package)
+# Install librosa (large package) with cache fixes
 RUN pip install --no-cache-dir "librosa>=0.11.0,<1.0.0" || \
     (echo "Librosa install failed, retrying..." && \
      pip install --no-cache-dir --timeout 900 --retries 15 "librosa>=0.11.0,<1.0.0")
@@ -90,11 +96,11 @@ ENV LOCAL_STORAGE_URL=http://192.168.1.218:30880
 ENV VOICE_STORAGE_BUCKET=voice-cloning
 
 # Create necessary directories
-RUN mkdir -p /tmp/voice_cloning_output /var/log /app/models
+RUN mkdir -p /tmp/voice_cloning_output /var/log /app/models /tmp/librosa_cache /tmp/numba_cache
 
 # Create non-root user
 RUN useradd --create-home --shell /bin/bash app && \
-    chown -R app:app /app /tmp/voice_cloning_output /var/log
+    chown -R app:app /app /tmp/voice_cloning_output /var/log /tmp/librosa_cache /tmp/numba_cache
 
 # Switch to non-root user
 USER app
